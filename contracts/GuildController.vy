@@ -572,11 +572,6 @@ def _vote_for_guild(user_addr: address, guild_addr: address, vote: bool):
     _n_guilds: int128 = self.n_guilds
     next_time: uint256 = (block.timestamp + WEEK) / WEEK * WEEK
     assert lock_end > next_time, "Your token lock expires too soon"
-
-    current_guild_addr: address = self.global_member_list[user_addr]
-    # Can vote for guild anytime as long as user is still in the same guild
-    if current_guild_addr != ZERO_ADDRESS and current_guild_addr != guild_addr:
-        assert block.timestamp >= self.last_user_vote[user_addr][guild_addr] + WEIGHT_VOTE_DELAY, "Cannot vote so often"
     
     guild_type: int128 = self.guild_types_[guild_addr] - 1
     assert guild_type >= 0, "Guild not added"
@@ -695,7 +690,7 @@ def add_member(guild_addr: address, user_addr: address):
     assert self.global_member_list[user_addr] == ZERO_ADDRESS, "Already in a guild"
 
     self._vote_for_guild(user_addr, guild_addr, True)
-    self.global_member_list[user_addr] = guild_addr # this line must be after self._vote_for_guild
+    self.global_member_list[user_addr] = guild_addr
     log AddMember(guild_addr, user_addr)
 
 
