@@ -82,6 +82,7 @@ def test_vesting(chain, accounts, token, gas_token, voting_escrow, guild_control
     chain.sleep(WEEK)
     chain.mine()
     minter.mint({"from": alice})
+    time_3 = chain[-1].timestamp
     print_time(chain[-1].timestamp)
     # check alice vesting amount
     actual_alice_1_epoch_vesting_amount = vesting.user_vesting_history(alice, 1)['amount']
@@ -98,18 +99,19 @@ def test_vesting(chain, accounts, token, gas_token, voting_escrow, guild_control
     vesting_claimable_token = vesting.get_claimable_tokens(alice)
     alice_vesting_slope_5 = vesting.user_vesting_history(alice, 1)['slope']
     assert approx(alice_vesting_slope_5 * WEEK, vesting_claimable_token, TOL)
-    # mint second rewards is MONTH - WEEK
+    # mint at 6
     tx = minter.mint({"from": alice})
+    time_6 = chain[-1].timestamp
     print(tx.events)
     chain.sleep(1)
     chain.mine()
     # check vesting claimable token at 6
     alice_vesting_amount_2_epoch = vesting.user_vesting_history(alice, 2)['amount']
     alice_vesting_slope_9 = vesting.user_vesting_history(alice, 2)['slope']
-    expect_token_vesting_mintable = token.rate() * (MONTH - WEEK) * 0.7
+    expect_token_vesting_mintable = token.rate() * (time_6 - time_3) * 0.7
     assert approx(alice_vesting_amount_2_epoch, expect_token_vesting_mintable, TOL)
     # check minted amount at 6
-    token_release_immediate_from_3_6 = token.rate() * (MONTH - WEEK) * 0.3
+    token_release_immediate_from_3_6 = token.rate() * (time_6 - time_3) * 0.3
     expect_minted = alice_vesting_slope_5 * WEEK + token_release_immediate_from_3_6
     actual_minted = tx.events['Minted']['minted']
     assert approx(actual_minted, expect_minted, TOL)

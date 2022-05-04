@@ -8,4 +8,5 @@ build/*
 tests/.DS_Store
 tests/__pycache__/*
 tests/integration/Guild/__pycache__/*
+venv/*
 
