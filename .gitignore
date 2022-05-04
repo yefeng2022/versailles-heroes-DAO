@@ -1,0 +1,11 @@
+/node_modules
+/mypython
+.idea
+package-lock.json
+.pytest_cache
+.DS_Store
+build/*
+tests/.DS_Store
+tests/__pycache__/*
+tests/integration/Guild/__pycache__/*
+
