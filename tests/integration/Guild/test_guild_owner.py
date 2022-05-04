@@ -125,25 +125,25 @@ def test_join_guild_and_vote_for_guild(chain, accounts, token, gas_token, voting
     assert guild_curr_weight == guild_weight_after_bob_join
 
 
-def test_set_guild_rate(chain, accounts, gas_token, guild_controller, Guild):
+def test_set_commission_rate(chain, accounts, gas_token, guild_controller, Guild):
     alice = accounts[0]
     bob = accounts[1]
     guild = create_guild(chain, guild_controller, gas_token, alice, Guild)
-    # TODO 2 Weeks can not change guild rate?
+    # TODO 2 Weeks can not change commission rate?
     chain.sleep(2 * WEEK + 1)
     chain.mine()
-    with brownie.reverts("Only guild owner can change guild rate"):
-        guild.set_guild_rate(False, {"from": bob})
+    with brownie.reverts("Only guild owner can change commission rate"):
+        guild.set_commission_rate(False, {"from": bob})
 
     with brownie.reverts("Maximum is 20"):
-        guild.set_guild_rate(True, {"from": alice})
+        guild.set_commission_rate(True, {"from": alice})
 
-    tx = guild.set_guild_rate(False, {"from": alice})
-    assert tx.events["SetGuildRate"]["guild_rate"] == 19
+    tx = guild.set_commission_rate(False, {"from": alice})
+    assert tx.events["SetCommissionRate"]["commission_rate"] == 19
     chain.sleep(600)
     chain.mine()
-    with brownie.reverts("Can only change guild rate once every week"):
-        guild.set_guild_rate(False, {"from": alice})
+    with brownie.reverts("Can only change commission rate once every week"):
+        guild.set_commission_rate(False, {"from": alice})
 
 
 def test_transfer_ownership(chain, accounts, gas_token, guild_controller, Guild):

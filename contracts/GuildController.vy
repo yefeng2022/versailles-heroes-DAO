@@ -22,7 +22,7 @@ interface VotingEscrow:
     def locked__end(addr: address) -> uint256: view
 
 interface Guild:
-    def initialize(_admin: address, _rate: uint256, _token: address, _game_token: address, _minter: address) -> bool: nonpayable
+    def initialize(_admin: address, _commission_rate: uint256, _token: address, _game_token: address, _minter: address) -> bool: nonpayable
     def transfer_ownership(new_owner: address): nonpayable
     def toggle_pause(): nonpayable
 
@@ -334,12 +334,12 @@ def _get_weight(guild_addr: address) -> uint256:
 
 @external
 @nonreentrant('lock')
-def create_guild(owner: address, guild_type: int128, rate: uint256) -> address:
+def create_guild(owner: address, guild_type: int128, commission_rate: uint256) -> address:
     """
-    @notice Add guild type `guild_type` with guild rate `rate`
+    @notice Add guild with type `guild_type` and guild owner commission rate `rate`
     @param owner Owner address
     @param guild_type Guild type
-    @param rate Guild rate
+    @param commission_rate Guild owner commission rate
     """
     assert msg.sender == self.admin
     assert (guild_type >= 0) and (guild_type < self.n_guild_types), "Guild type not supported"
@@ -356,7 +356,7 @@ def create_guild(owner: address, guild_type: int128, rate: uint256) -> address:
 
     # Check if user has created a guild before or not
     guild_address: address = create_forwarder_to(self.guild)
-    _isSuccess: bool = Guild(guild_address).initialize(owner, rate, self.token, gas_escrow, self.minter)
+    _isSuccess: bool = Guild(guild_address).initialize(owner, commission_rate, self.token, gas_escrow, self.minter)
 
     next_time: uint256 = (block.timestamp + WEEK) / WEEK * WEEK
     if self.time_sum[guild_type] == 0:
@@ -371,7 +371,7 @@ def create_guild(owner: address, guild_type: int128, rate: uint256) -> address:
         self.guild_types_[guild_address] = guild_type + 1
         self.guild_owner_list[owner] = guild_address
         self.global_member_list[owner] = guild_address
-        log NewGuild(guild_address, weight, rate)
+        log NewGuild(guild_address, weight, commission_rate)
         return guild_address
 
     return ZERO_ADDRESS

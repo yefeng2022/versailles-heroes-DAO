@@ -56,8 +56,8 @@ def create_type(type_id, guild_controller, type_weight):
     assert guild_controller.gas_addr_escrow(token_contract.address) == tx.events['AddType']['gas_escrow']
 
 
-def create_guild(accounts, guild_owner, guild_rate, guild_type, Guild, guild_controller):
-    guild_controller.create_guild(guild_owner, guild_type, guild_rate, {"from": accounts[0]})
+def create_guild(accounts, guild_owner, commission_rate, guild_type, Guild, guild_controller):
+    guild_controller.create_guild(guild_owner, guild_type, commission_rate, {"from": accounts[0]})
     guild_address = guild_controller.guild_owner_list(guild_owner)
     guild_contract = Guild.at(guild_address)
     guild_contract.update_working_balance(guild_owner, {"from": guild_owner})

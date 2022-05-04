@@ -81,7 +81,7 @@ DAY: constant(uint256) = 86400
 owner: public(address) # guild owner address
 
 # Proportion of what the guild owner gets
-guild_rate: public(HashMap[uint256, uint256])  # time -> guild_rate
+commission_rate: public(HashMap[uint256, uint256])  # time -> commission_rate
 last_user_action: public(HashMap[address, uint256])  # Last user vote's timestamp for each guild address
 total_owner_bonus: public(HashMap[address, uint256]) # owner address -> owner bonus
 
@@ -96,8 +96,8 @@ event TriggerPause:
     guild: address
     pause: bool
 
-event SetGuildRate:
-    guild_rate: uint256
+event SetCommissionRate:
+    commission_rate: uint256
     effective_time: uint256
 
 # for testing, to be removed
@@ -106,7 +106,7 @@ event CheckpointValues:
     prev_future_epoch: uint256
     prev_week_time: uint256
     week_time: uint256
-    guild_rate: uint256
+    commission_rate: uint256
     dt: uint256
     w: uint256
     rate: uint256
@@ -127,7 +127,7 @@ def __init__():
 
 @external
 @nonreentrant('lock')
-def initialize(_owner: address, _rate: uint256, _token: address, _gas_escrow: address, _minter: address) -> bool:
+def initialize(_owner: address, _commission_rate: uint256, _token: address, _gas_escrow: address, _minter: address) -> bool:
 
     #@notice Initialize the contract to create a guild
     assert self.owner == ZERO_ADDRESS  # dev: can only initialize once
@@ -147,10 +147,10 @@ def initialize(_owner: address, _rate: uint256, _token: address, _gas_escrow: ad
     assert _gas_escrow != ZERO_ADDRESS
     self.gas_escrow = _gas_escrow
 
-    assert _rate > 0 and _rate <= 20, 'Rate has to be minimally 1% and maximum 20%'
+    assert _commission_rate > 0 and _commission_rate <= 20, 'Rate has to be minimally 1% and maximum 20%'
     next_time: uint256 = (block.timestamp + WEEK) / WEEK * WEEK
-    self.guild_rate[next_time] = _rate
-    self.last_change_rate = next_time # Record last updated guild rate
+    self.commission_rate[next_time] = _commission_rate
+    self.last_change_rate = next_time # Record last updated commission rate
     self.inflation_rate = VRH20(self.vrh_token).rate()
     self.future_epoch_time = VRH20(self.vrh_token).future_epoch_time_write()
 
@@ -158,20 +158,20 @@ def initialize(_owner: address, _rate: uint256, _token: address, _gas_escrow: ad
 
 
 @internal
-def _get_guild_rate() -> uint256:
+def _get_commission_rate() -> uint256:
     """
-    @notice Fill historic guild rate week-over-week for missed checkins
-            and return the guild rate for the future week
-    @return Guild rate
+    @notice Fill historic commission rate week-over-week for missed checkins
+            and return the commission rate for the future week
+    @return Commission rate
     """
     t: uint256 = self.last_change_rate
     if t > 0:
-        w: uint256 = self.guild_rate[t]
+        w: uint256 = self.commission_rate[t]
         for i in range(500):
             if t > block.timestamp:
                 break
             t += WEEK
-            self.guild_rate[t] = w
+            self.commission_rate[t] = w
             if t > block.timestamp:
                 self.last_change_rate = t
         return w
@@ -213,13 +213,13 @@ def _checkpoint(addr: address):
         prev_week_time: uint256 = _period_time
         week_time: uint256 = min((_period_time + WEEK) / WEEK * WEEK, block.timestamp)
 
-        # Fill missing check-in for guild rate
-        self._get_guild_rate()
+        # Fill missing check-in for commission rate
+        self._get_commission_rate()
 
         for i in range(500):
             dt: uint256 = week_time - prev_week_time
             w: uint256 = GuildController(_controller).guild_relative_weight(self, prev_week_time / WEEK * WEEK)
-            guild_rate: uint256 = self.guild_rate[prev_week_time / WEEK * WEEK]
+            commission_rate: uint256 = self.commission_rate[prev_week_time / WEEK * WEEK]
 
             if _working_supply > 0:
                 if prev_future_epoch >= prev_week_time and prev_future_epoch < week_time:
@@ -228,15 +228,15 @@ def _checkpoint(addr: address):
                     # the last epoch.
                     # If more than one epoch is crossed - the gauge gets less,
                     # but that'd meen it wasn't called for more than 1 year
-                    _integrate_inv_supply += rate * w * (prev_future_epoch - prev_week_time) / _working_supply * (100 - guild_rate) / 100
-                    _owner_bonus += rate * w * (prev_future_epoch - prev_week_time) * guild_rate / 100
+                    _integrate_inv_supply += rate * w * (prev_future_epoch - prev_week_time) / _working_supply * (100 - commission_rate) / 100
+                    _owner_bonus += rate * w * (prev_future_epoch - prev_week_time) * commission_rate / 100
                     
                     rate = new_rate
-                    _integrate_inv_supply += rate * w * (week_time - prev_future_epoch) / _working_supply * (100 - guild_rate) / 100
-                    _owner_bonus += rate * w * (week_time - prev_future_epoch) * guild_rate / 100
+                    _integrate_inv_supply += rate * w * (week_time - prev_future_epoch) / _working_supply * (100 - commission_rate) / 100
+                    _owner_bonus += rate * w * (week_time - prev_future_epoch) * commission_rate / 100
                 else:
-                    _integrate_inv_supply += rate * w * dt / _working_supply * (100 - guild_rate) / 100
-                    _owner_bonus += rate * w * dt * guild_rate / 100
+                    _integrate_inv_supply += rate * w * dt / _working_supply * (100 - commission_rate) / 100
+                    _owner_bonus += rate * w * dt * commission_rate / 100
                     
                 # On precisions of the calculation
                 # rate ~= 10e18
@@ -246,7 +246,7 @@ def _checkpoint(addr: address):
                 # Loss is 1e-9 - acceptable
 
             # log event for debugging, to be removed
-            log CheckpointValues(i, prev_future_epoch, prev_week_time, week_time, guild_rate, dt, w, rate, _integrate_inv_supply, _working_supply, _owner_bonus / 10 ** 18)
+            log CheckpointValues(i, prev_future_epoch, prev_week_time, week_time, commission_rate, dt, w, rate, _integrate_inv_supply, _working_supply, _owner_bonus / 10 ** 18)
 
             if week_time == block.timestamp:
                 break
@@ -270,24 +270,24 @@ def _checkpoint(addr: address):
 
 
 @external
-def set_guild_rate(increase: bool):
-    assert self.owner == msg.sender,'Only guild owner can change guild rate'
-    assert block.timestamp >= self.last_change_rate + WEEK, "Can only change guild rate once every week"
+def set_commission_rate(increase: bool):
+    assert self.owner == msg.sender,'Only guild owner can change commission rate'
+    assert block.timestamp >= self.last_change_rate + WEEK, "Can only change commission rate once every week"
     
     next_time: uint256 = (block.timestamp + WEEK) / WEEK * WEEK
-    guild_rate: uint256 = self.guild_rate[self.last_change_rate]
+    commission_rate: uint256 = self.commission_rate[self.last_change_rate]
 
     # 0 == decrease, 1 equals increase
     if increase == True :
-        guild_rate += 1
-        assert guild_rate <= 20, 'Maximum is 20'
+        commission_rate += 1
+        assert commission_rate <= 20, 'Maximum is 20'
     else:
-        guild_rate -= 1
-        assert guild_rate > 0, 'Minimum is 1'
+        commission_rate -= 1
+        assert commission_rate > 0, 'Minimum is 1'
     
-    self.guild_rate[next_time] = guild_rate
+    self.commission_rate[next_time] = commission_rate
     self.last_change_rate = next_time
-    log SetGuildRate(guild_rate, next_time)
+    log SetCommissionRate(commission_rate, next_time)
 
 
 @internal
