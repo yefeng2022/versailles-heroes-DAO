@@ -109,9 +109,10 @@ def end_time(start_time):
 
 
 @pytest.fixture(scope="module")
-def vesting(VestingEscrow, accounts, token, start_time, end_time):
-    contract = VestingEscrow.deploy(token, start_time, end_time, True, accounts[1:5], {"from": accounts[0]})
-    # token._mint_for_testing(accounts[0], 10 ** 21)
+def vesting(VestingEscrow, accounts, coin_a, start_time, end_time):
+    contract = VestingEscrow.deploy(coin_a, start_time, end_time, True, accounts[1:5], {"from": accounts[0]})
+    coin_a._mint_for_testing(accounts[0], 10 ** 21)
+    coin_a.approve(contract, 10 ** 21, {"from": accounts[0]})
     yield contract
 
 
