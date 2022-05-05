@@ -86,8 +86,8 @@ def guild_controller(GuildController, accounts, token, guild_template, gas_escro
 
 
 @pytest.fixture(scope="module")
-def vesting(VestingEscrow, accounts):
-    yield VestingEscrow.deploy({"from": accounts[0]})
+def vesting(RewardVestingEscrow, accounts):
+    yield RewardVestingEscrow.deploy({"from": accounts[0]})
 
 
 @pytest.fixture(scope="module")
@@ -95,7 +95,7 @@ def minter(Minter, accounts, guild_controller, token, vesting):
     yield Minter.deploy(token, guild_controller, vesting, {"from": accounts[0]})
 
 
-# VestingEscrow fixtures
+# RewardVestingEscrow fixtures
 
 
 @pytest.fixture(scope="module")
