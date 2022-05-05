@@ -147,7 +147,7 @@ def initialize(_owner: address, _commission_rate: uint256, _token: address, _gas
     assert _gas_escrow != ZERO_ADDRESS
     self.gas_escrow = _gas_escrow
 
-    assert _commission_rate > 0 and _commission_rate <= 20, 'Rate has to be minimally 1% and maximum 20%'
+    assert _commission_rate >= 0 and _commission_rate <= 20, 'Rate has to be minimally 0% and maximum 20%'
     next_time: uint256 = (block.timestamp + WEEK) / WEEK * WEEK
     self.commission_rate[next_time] = _commission_rate
     self.last_change_rate = next_time # Record last updated commission rate
@@ -260,8 +260,9 @@ def _checkpoint(addr: address):
 
     # Update user-specific integrals
     # calculate owner bonus
-    self.integrate_fraction[self.owner] += _owner_bonus / 10 ** 18
-    self.total_owner_bonus[self.owner] += _owner_bonus / 10 ** 18
+    if _owner_bonus > 0:
+        self.integrate_fraction[self.owner] += _owner_bonus / 10 ** 18
+        self.total_owner_bonus[self.owner] += _owner_bonus / 10 ** 18
 
     # calculate for all members (including owner)
     self.integrate_fraction[addr] += _working_balance * (_integrate_inv_supply - self.integrate_inv_supply_of[addr]) / 10 ** 18
@@ -283,7 +284,7 @@ def set_commission_rate(increase: bool):
         assert commission_rate <= 20, 'Maximum is 20'
     else:
         commission_rate -= 1
-        assert commission_rate > 0, 'Minimum is 1'
+        assert commission_rate >= 0, 'Minimum is 0'
     
     self.commission_rate[next_time] = commission_rate
     self.last_change_rate = next_time
