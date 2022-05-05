@@ -16,7 +16,7 @@ TOL = 120 / WEEK
 
 
 @pytest.fixture(scope="module", autouse=True)
-def initial_setup(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, vesting):
+def initial_setup(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, reward_vesting):
     chain.sleep(DAY + 1)
     token.update_mining_parameters()
     for i in range(1, 10):
@@ -25,7 +25,7 @@ def initial_setup(chain, accounts, token, gas_token, voting_escrow, guild_contro
 
     token.set_minter(minter.address, {"from": accounts[0]})
     guild_controller.set_minter(minter.address, {"from": accounts[0]})
-    vesting.set_minter(minter.address, {"from": accounts[0]})
+    reward_vesting.set_minter(minter.address, {"from": accounts[0]})
 
 
 def setup_account(amount, account, accounts, token, voting_escrow):
