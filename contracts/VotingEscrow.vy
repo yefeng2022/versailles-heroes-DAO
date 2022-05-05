@@ -61,6 +61,7 @@ event Supply:
 
 WEEK: constant(uint256) = 7 * 86400  # all future times are rounded by week
 MAXTIME: constant(uint256) = 4 * 365 * 86400  # 4 years
+MINTIME: constant(uint256) = 365 * 86400  # 1 year
 MULTIPLIER: constant(uint256) = 10 ** 18
 
 token: public(address)
@@ -400,6 +401,7 @@ def create_lock(_value: uint256, _unlock_time: uint256):
     assert _value > 0  # dev: need non-zero value
     assert _locked.amount == 0, "Withdraw old tokens first"
     assert unlock_time > block.timestamp, "Can only lock until time in the future"
+    assert unlock_time + WEEK >= block.timestamp + MINTIME, "Voting lock must be 1 year min"
     assert unlock_time <= block.timestamp + MAXTIME, "Voting lock can be 4 years max"
 
     self._deposit_for(msg.sender, _value, unlock_time, _locked, CREATE_LOCK_TYPE)

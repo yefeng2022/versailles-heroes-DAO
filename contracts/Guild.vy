@@ -29,7 +29,7 @@ interface VotingEscrow:
     def user_point_epoch(addr: address) -> uint256: view
     def user_point_history__ts(addr: address, epoch: uint256) -> uint256: view
 
-interface VestingEscrow:
+interface RewardVestingEscrow:
     def claimable_tokens(addr: address) -> uint256: view
 
 
@@ -357,7 +357,7 @@ def claimable_tokens(addr: address) -> uint256:
     """
     self._checkpoint(addr)
     _vestingEscrow: address = Minter(self.minter).vestingEscrow()
-    _vesting_claimable: uint256 = VestingEscrow(_vestingEscrow).claimable_tokens(addr)
+    _vesting_claimable: uint256 = RewardVestingEscrow(_vestingEscrow).claimable_tokens(addr)
     return self.integrate_fraction[addr] - Minter(self.minter).minted(addr, self) + _vesting_claimable
 
 

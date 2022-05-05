@@ -12,7 +12,7 @@ interface GuildController:
     def set_minter(_minter: address): nonpayable
     def global_member_list(addr: address) -> address: view
 
-interface VestingEscrow:
+interface RewardVestingEscrow:
     def balanceOf(_addr: address) -> uint256: view
     def vesting(_recipient: address, _amount: uint256) -> uint256: nonpayable
     def claim(addr: address) -> uint256: nonpayable
@@ -41,7 +41,7 @@ def __init__(_token: address, _controller: address, _vestingEscrow: address):
 
 @internal
 def _mint_for(guild_addr: address, _for: address):
-    vested_claimable: uint256 = VestingEscrow(self.vestingEscrow).claim(_for) # claimable amount from existing vesting
+    vested_claimable: uint256 = RewardVestingEscrow(self.vestingEscrow).claim(_for) # claimable amount from existing vesting
     to_mint: uint256 = vested_claimable
     new_vested_locked: uint256 = 0
 
@@ -51,7 +51,7 @@ def _mint_for(guild_addr: address, _for: address):
         mintable: uint256 = total_mint - self.minted[_for][guild_addr]
 
         if mintable > 0:
-            new_vested_locked = VestingEscrow(self.vestingEscrow).vesting(_for, mintable) # new 70% locked amount
+            new_vested_locked = RewardVestingEscrow(self.vestingEscrow).vesting(_for, mintable) # new 70% locked amount
             immediate_release: uint256 = mintable - new_vested_locked # new 30% vested amount
             to_mint += immediate_release # inclusive of previous vested_claimable
             self.minted[_for][guild_addr] = total_mint
