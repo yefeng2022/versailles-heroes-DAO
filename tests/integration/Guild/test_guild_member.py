@@ -17,7 +17,7 @@ TOL = 120 / WEEK
 def initial_setup(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, vesting):
     alice, bob, carl = accounts[:3]
     amount_alice = 40000 * 10 ** 18
-    amount_bob = 50000 * 10 ** 18
+    amount_bob = 40000 * 10 ** 18
     amount_carl = 1000000 * 10 ** 18
     token.transfer(bob, amount_alice, {"from": alice})
     token.transfer(bob, amount_bob, {"from": alice})
@@ -141,7 +141,7 @@ def test_guild_integral_without_boosting(chain, accounts, token, gas_token, voti
     alice, bob = accounts[:2]
     integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
     checkpoint_rate = token.rate()
-    guild = create_guild(chain, guild_controller, gas_token, alice, 0, Guild) # create with 0 commission rate
+    guild = create_guild(chain, guild_controller, gas_token, alice, 0, Guild)  # create with 0 commission rate
     chain.sleep((chain[-1].timestamp // WEEK + 1) * WEEK - chain[-1].timestamp)
     chain.mine()
     checkpoint = chain[-1].timestamp
@@ -225,43 +225,73 @@ def test_guild_integral_without_boosting(chain, accounts, token, gas_token, voti
 
 def test_boosting(chain, accounts, token, gas_token, voting_escrow, guild_controller,
                   minter, vesting, Guild, GasEscrow):
-    # WIP
     alice = accounts[0]
     bob = accounts[1]
     carl = accounts[2]
-    guild = create_guild(chain, guild_controller, gas_token, alice, 20, Guild)
+    # create guild with commission rate = 0, easy for test
+    guild = create_guild(chain, guild_controller, gas_token, alice, 0, Guild)
 
     # skip boost warm up
-    chain.sleep(2 * WEEK)
+    chain.sleep(2 * WEEK + 1)
     chain.mine()
-    tx = guild.update_working_balance(alice, {"from": alice})
-    print("----alice 1st", tx.events)
+    guild.update_working_balance(alice, {"from": alice})
 
     chain.sleep(10)
     chain.mine()
     gas_amount = 100000 * 10 ** 18
+    # alice get boost
     setup_gas_token(accounts, alice, gas_amount, gas_token, guild_controller, GasEscrow)
-    tx = guild.update_working_balance(alice, {"from": alice})
-    print("----alice 2nd", tx.events)
-
-    tx = guild.join_guild({"from": carl})
-    print('----carl 1st', tx.events)
-    gas_amount_carl = 10000000 * 10 ** 18
-    setup_gas_token(accounts, carl, gas_amount_carl, gas_token, guild_controller, GasEscrow)
-    tx = guild.update_working_balance(carl, {"from": carl})
-    print("----carl 2nd", tx.events)
-    chain.sleep(WEEK)
-    chain.mine()
-
+    guild.update_working_balance(alice, {"from": alice})
     # bob join guild
-    tx = guild.join_guild({"from": bob})
-    print('----bob 1st', tx.events)
-    # add gas for bob
-    setup_gas_token(accounts, bob, gas_amount, gas_token, guild_controller, GasEscrow)
+    guild.join_guild({"from": bob})
+    chain.sleep(10)
+    chain.mine()
+    guild.update_working_balance(bob, {"from": bob})
+    guild.update_working_balance(alice, {"from": alice})
+    # record alice and bob integrate fraction
+    alice_integrate_fraction_1st = guild.integrate_fraction(alice)
+    bob_integrate_fraction_1st = guild.integrate_fraction(bob)
+
+    dt = randrange(1, 4 * WEEK)
+    chain.sleep(dt)
+    chain.mine()
+    # check integrate fraction of bob and alice
+    guild.update_working_balance(bob, {"from": bob})
+    bob_integrate_fraction_2nd = guild.integrate_fraction(bob)
+    bob_reward = bob_integrate_fraction_2nd - bob_integrate_fraction_1st
+
+    guild.update_working_balance(alice, {"from": alice})
+    alice_integrate_fraction_2nd = guild.integrate_fraction(alice)
+    alice_reward = alice_integrate_fraction_2nd - alice_integrate_fraction_1st
+    # alice get 2.5x rewards compare with bob
+    assert approx(alice_reward / bob_reward, 2.5, 1e-5)
+
+    # carl join in, this will increase S and make sure alice, bob boost 2.5x
+    guild.join_guild({"from": carl})
+    guild.update_working_balance(carl, {"from": carl})
+
+    # check alice gas amount
+    gas_escrow = guild_controller.gas_addr_escrow(gas_token.address)
+    alice_gas_amount = GasEscrow.at(gas_escrow).balanceOf(alice)
+    # add same gas for bob with alice
+    setup_gas_token(accounts, bob, alice_gas_amount, gas_token, guild_controller, GasEscrow)
+    # record bob integrate fraction
     tx = guild.update_working_balance(bob, {"from": bob})
-    print("----bob second", tx.events)
-    tx = guild.update_working_balance(alice, {"from": alice})
-    print("----alice 3rd", tx.events)
+    bob_integrate_fraction_2nd = guild.integrate_fraction(bob)
+
+    dt = randrange(1, WEEK)
+    chain.sleep(dt)
+    chain.mine()
+    # get alice integrate fraction
+    guild.update_working_balance(alice, {"from": alice})
+    alice_integrate_fraction_3nd = guild.integrate_fraction(alice)
+    # get bob integrate fraction
+    guild.update_working_balance(bob, {"from": bob})
+    bob_integrate_fraction_3nd = guild.integrate_fraction(bob)
+    # alice get same rewards with bob
+    alice_reward_2 = alice_integrate_fraction_3nd - alice_integrate_fraction_2nd
+    bob_reward_2 = bob_integrate_fraction_3nd - bob_integrate_fraction_2nd
+    assert approx(alice_reward_2, bob_reward_2, 1e-5)
 
 
 def setup_gas_token(accounts, account, gas_amount, gas_token, guild_controller, GasEscrow):
