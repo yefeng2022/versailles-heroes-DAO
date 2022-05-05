@@ -14,7 +14,7 @@ TOL = 120 / WEEK
 
 
 @pytest.fixture(scope="module", autouse=True)
-def initial_setup(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, vesting):
+def initial_setup(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, reward_vesting):
     alice, bob, carl = accounts[:3]
     amount_alice = 40000 * 10 ** 18
     amount_bob = 40000 * 10 ** 18
@@ -45,11 +45,11 @@ def initial_setup(chain, accounts, token, gas_token, voting_escrow, guild_contro
 
     token.set_minter(minter.address, {"from": accounts[0]})
     guild_controller.set_minter(minter.address, {"from": accounts[0]})
-    vesting.set_minter(minter.address, {"from": accounts[0]})
+    reward_vesting.set_minter(minter.address, {"from": accounts[0]})
     chain.sleep(10)
 
 
-def test_join_guild_twice(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, vesting, Guild):
+def test_join_guild_twice(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, reward_vesting, Guild):
     """
     Test join guild
     """
@@ -67,9 +67,9 @@ def test_join_guild_twice(chain, accounts, token, gas_token, voting_escrow, guil
         guild.join_guild({"from": bob})
 
 
-def test_leave_guild(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, vesting, Guild):
+def test_leave_guild(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, reward_vesting, Guild):
     '''
-    test leave guild voting power decrease, integrate fraction not change and only can claim vesting
+    test leave guild voting power decrease, integrate fraction not change and only can claim reward vesting
     :return:
     '''
     alice = accounts[0]
@@ -98,7 +98,7 @@ def test_leave_guild(chain, accounts, token, gas_token, voting_escrow, guild_con
 
     assert approx(current_alice_power, next_time_voting_power, TOL)
 
-    # advance to vesting epoch start
+    # advance to reward vesting epoch start
     chain.sleep((chain[-1].timestamp // MONTH + 1) * MONTH - chain[-1].timestamp)
     chain.mine()
     chain.sleep(WEEK)
@@ -111,7 +111,7 @@ def test_leave_guild(chain, accounts, token, gas_token, voting_escrow, guild_con
 
 
 def test_increase_amount_guild_weight_increase(chain, accounts, token, gas_token, voting_escrow, guild_controller,
-                                               minter, vesting, Guild):
+                                               minter, reward_vesting, Guild):
     '''
     test_increase_amount_guild_weight_increase
     :return:
@@ -137,7 +137,7 @@ def test_increase_amount_guild_weight_increase(chain, accounts, token, gas_token
 
 
 def test_guild_integral_without_boosting(chain, accounts, token, gas_token, voting_escrow, guild_controller,
-                                         minter, vesting, Guild):
+                                         minter, reward_vesting, Guild):
     alice, bob = accounts[:2]
     integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
     checkpoint_rate = token.rate()
@@ -224,7 +224,7 @@ def test_guild_integral_without_boosting(chain, accounts, token, gas_token, voti
 
 
 def test_boosting(chain, accounts, token, gas_token, voting_escrow, guild_controller,
-                  minter, vesting, Guild, GasEscrow):
+                  minter, reward_vesting, Guild, GasEscrow):
     alice = accounts[0]
     bob = accounts[1]
     carl = accounts[2]

@@ -11,7 +11,7 @@ TOL = 120 / WEEK
 
 
 @pytest.fixture(scope="module", autouse=True)
-def initial_setup(web3, chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, vesting):
+def initial_setup(web3, chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, reward_vesting):
     alice, bob = accounts[:2]
     amount_alice = 40000 * 10 ** 18
     amount_bob = 50000 * 10 ** 18
@@ -35,22 +35,22 @@ def initial_setup(web3, chain, accounts, token, gas_token, voting_escrow, guild_
 
     chain.sleep(H)
 
-    stages["before_deposits"] = (web3.eth.blockNumber, chain[-1].timestamp)
+    stages["before_deposits"] = (web3.eth.block_number, chain[-1].timestamp)
 
     voting_escrow.create_lock(amount_alice, chain[-1].timestamp + MAXTIME, {"from": alice})
     voting_escrow.create_lock(amount_bob, chain[-1].timestamp + MAXTIME, {"from": bob})
-    stages["alice_deposit"] = (web3.eth.blockNumber, chain[-1].timestamp)
+    stages["alice_deposit"] = (web3.eth.block_number, chain[-1].timestamp)
 
     chain.sleep(H)
     chain.mine()
 
     token.set_minter(minter.address, {"from": accounts[0]})
     guild_controller.set_minter(minter.address, {"from": accounts[0]})
-    vesting.set_minter(minter.address, {"from": accounts[0]})
+    reward_vesting.set_minter(minter.address, {"from": accounts[0]})
     chain.sleep(10)
 
 
-def test_create_guild(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, vesting, Guild):
+def test_create_guild(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, reward_vesting, Guild):
     """
     Test create guild
     """
@@ -69,7 +69,7 @@ def test_create_guild(chain, accounts, token, gas_token, voting_escrow, guild_co
 
 
 def test_guild_mining(chain, accounts, token, gas_token, voting_escrow, guild_template, guild_controller, minter,
-                      vesting, Guild):
+                      reward_vesting, Guild):
     '''
     test guild mining of guild owner
     :return:
@@ -92,7 +92,7 @@ def test_guild_mining(chain, accounts, token, gas_token, voting_escrow, guild_te
 
 def test_join_guild_and_vote_for_guild(chain, accounts, token, gas_token, voting_escrow, guild_template,
                                        guild_controller, minter,
-                                       vesting, Guild):
+                                       reward_vesting, Guild):
     '''
     test join guild and vote increased in next time
     :return:
