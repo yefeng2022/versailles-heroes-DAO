@@ -40,11 +40,11 @@ def initial_setup(web3, chain, accounts, token, gas_token, voting_escrow, guild_
 
     chain.sleep(H)
 
-    stages["before_deposits"] = (web3.eth.blockNumber, chain[-1].timestamp)
+    stages["before_deposits"] = (web3.eth.block_number, chain[-1].timestamp)
 
     voting_escrow.create_lock(amount_alice, chain[-1].timestamp + MAXTIME, {"from": alice})
     voting_escrow.create_lock(amount_bob, chain[-1].timestamp + MAXTIME, {"from": bob})
-    stages["alice_deposit"] = (web3.eth.blockNumber, chain[-1].timestamp)
+    stages["alice_deposit"] = (web3.eth.block_number, chain[-1].timestamp)
 
     chain.sleep(H)
     chain.mine()
