@@ -1,13 +1,14 @@
 import brownie
 from tests.conftest import approx
+from random import random, randrange
 
 import pytest
-from test_guild_owner import create_guild
 
 H = 3600
 DAY = 86400
 WEEK = 7 * DAY
 MONTH = 4 * WEEK
+YEAR = 365 * 86400
 MAXTIME = 126144000
 TOL = 120 / WEEK
 
@@ -54,7 +55,7 @@ def test_join_guild_twice(chain, accounts, token, gas_token, voting_escrow, guil
     """
     alice = accounts[0]
     bob = accounts[1]
-    guild = create_guild(chain, guild_controller, gas_token, alice, Guild)
+    guild = create_guild(chain, guild_controller, gas_token, alice, 0, Guild)
     chain.sleep(60)
     chain.mine()
     # join guild for the first time
@@ -73,7 +74,7 @@ def test_leave_guild(chain, accounts, token, gas_token, voting_escrow, guild_con
     '''
     alice = accounts[0]
     bob = accounts[1]
-    guild = create_guild(chain, guild_controller, gas_token, alice, Guild)
+    guild = create_guild(chain, guild_controller, gas_token, alice, 0, Guild)
     alice_voting_power = voting_escrow.balanceOf(alice)
     alice_slope = voting_escrow.get_last_user_slope(alice)
     chain.sleep(WEEK)
@@ -116,7 +117,7 @@ def test_increase_amount_guild_weight_increase(chain, accounts, token, gas_token
     :return:
     '''
     alice = accounts[0]
-    guild = create_guild(chain, guild_controller, gas_token, alice, Guild)
+    guild = create_guild(chain, guild_controller, gas_token, alice, 0, Guild)
 
     chain.sleep(WEEK)
     chain.mine()
@@ -135,33 +136,100 @@ def test_increase_amount_guild_weight_increase(chain, accounts, token, gas_token
     assert approx(alice_power_at_next_time, guild_voting_weight, TOL)
 
 
-def test_guild_earn_without_boosting(chain, accounts, token, gas_token, voting_escrow, guild_controller,
-                                     minter, vesting, Guild, GasEscrow):
-    # WIP
-    alice = accounts[0]
-    guild = create_guild(chain, guild_controller, gas_token, alice, Guild)
-
-    chain.sleep(WEEK)
+def test_guild_integral_without_boosting(chain, accounts, token, gas_token, voting_escrow, guild_controller,
+                                         minter, vesting, Guild):
+    alice, bob = accounts[:2]
+    integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
+    checkpoint_rate = token.rate()
+    guild = create_guild(chain, guild_controller, gas_token, alice, 0, Guild) # create with 0 commission rate
+    chain.sleep((chain[-1].timestamp // WEEK + 1) * WEEK - chain[-1].timestamp)
     chain.mine()
-    tx = guild.update_working_balance(alice, {"from": alice})
-    print("1st", tx.events)
+    checkpoint = chain[-1].timestamp
+    checkpoint_supply = 0
+    checkpoint_balance = 0
 
-    gas_escrow_contract = guild_controller.gas_addr_escrow(gas_token.address)
-    # deposit game token to gas escrow and boost
+    def update_integral(is_update_working_balance):
+        nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
 
-    chain.sleep(WEEK)
+        t1 = chain[-1].timestamp
+        rate1 = token.rate()
+        t_epoch = token.start_epoch_time()
+        if checkpoint >= t_epoch:
+            rate_x_time = (t1 - checkpoint) * rate1
+        else:
+            rate_x_time = (t_epoch - checkpoint) * checkpoint_rate + (t1 - t_epoch) * rate1
+        if checkpoint_supply > 0:
+            integral += rate_x_time * checkpoint_balance // checkpoint_supply
+        checkpoint_rate = rate1
+        checkpoint = t1
+        checkpoint_supply = guild.working_supply()
+        if is_update_working_balance:
+            checkpoint_balance = guild.working_balances(alice)
+
+    chain.sleep(10000)
     chain.mine()
-    tx = guild.update_working_balance(alice, {"from": alice})
-    print("2nd", tx.events)
+    guild.update_working_balance(alice, {"from": alice})
+    checkpoint_supply = guild.working_supply()
+    checkpoint_balance = guild.working_balances(alice)
+    update_integral(True)
+    # Now let's have a loop where Bob always mint, join, leave
+    # and Alice does so more rarely
+    dt = randrange(1, WEEK)
+    chain.sleep(dt)
+    chain.mine()
+    guild.join_guild({"from": bob})
+    update_integral(False)
+
+    dt = randrange(1, WEEK)
+    chain.sleep(dt)
+    chain.mine()
+    guild.update_working_balance(bob, {"from": bob})
+    update_integral(False)
+
+    guild.update_working_balance(alice, {"from": alice})
+    update_integral(True)
+    assert approx(guild.integrate_fraction(alice), integral, 1e-12)
+    for i in range(40):
+        is_alice = random() < 0.2
+        dt = randrange(1, YEAR // 20)
+        chain.sleep(dt)
+        chain.mine()
+
+        # for bob mint
+        is_mint = (i > 0) * (random() < 0.5)
+        if is_mint:
+            minter.mint({"from": bob})
+            update_integral(False)
+
+        # for alice
+        if is_alice and is_mint:
+            minter.mint({"from": alice})
+            update_integral(True)
+
+        if random() < 0.5:
+            guild.update_working_balance(alice, {"from": alice})
+            update_integral(True)
+        if random() < 0.5:
+            guild.update_working_balance(bob, {"from": bob})
+            update_integral(False)
+
+        dt = randrange(1, YEAR // 20)
+        chain.sleep(dt)
+        chain.mine()
+
+        guild.update_working_balance(alice, {"from": alice})
+        update_integral(True)
+        print(i, dt / 86400, integral, guild.integrate_fraction(alice))
+        assert approx(guild.integrate_fraction(alice), integral, 1e-12)
 
 
 def test_boosting(chain, accounts, token, gas_token, voting_escrow, guild_controller,
-                                  minter, vesting, Guild, GasEscrow):
+                  minter, vesting, Guild, GasEscrow):
     # WIP
     alice = accounts[0]
     bob = accounts[1]
     carl = accounts[2]
-    guild = create_guild(chain, guild_controller, gas_token, alice, Guild)
+    guild = create_guild(chain, guild_controller, gas_token, alice, 20, Guild)
 
     # skip boost warm up
     chain.sleep(2 * WEEK)
@@ -203,3 +271,15 @@ def setup_gas_token(accounts, account, gas_amount, gas_token, guild_controller, 
     gas_token.approve(gas_escrow_addr, gas_amount * 10, {"from": account})
     gas_escrow_contract = GasEscrow.at(gas_escrow_addr)
     gas_escrow_contract.create_gas(gas_amount, {"from": account})
+
+
+def create_guild(chain, guild_controller, gas_token, guild_owner, commission_rate, Guild):
+    guild_type = 0
+    type_weight = 1 * 10 ** 18
+    guild_controller.add_type("Gas MOH", "GASMOH", gas_token.address, type_weight)
+    chain.sleep(H)
+    guild_controller.create_guild(guild_owner, guild_type, commission_rate, {"from": guild_owner})
+    guild_address = guild_controller.guild_owner_list(guild_owner)
+    guild_contract = Guild.at(guild_address)
+    guild_contract.update_working_balance(guild_owner, {"from": guild_owner})
+    return guild_contract

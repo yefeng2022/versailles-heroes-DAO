@@ -250,11 +250,11 @@ def print_time(unix_time):
 
 def create_guild(chain, guild_controller, gas_token, guild_owner, Guild):
     guild_type = 0
-    guild_rate = 20
+    commission_rate = 20
     type_weight = 1 * 10 ** 18
     guild_controller.add_type("Gas MOH", "GASMOH", gas_token.address, type_weight)
     chain.sleep(H)
-    guild_controller.create_guild(guild_owner, guild_type, guild_rate, {"from": guild_owner})
+    guild_controller.create_guild(guild_owner, guild_type, commission_rate, {"from": guild_owner})
     guild_address = guild_controller.guild_owner_list(guild_owner)
     guild_contract = Guild.at(guild_address)
     guild_contract.update_working_balance(guild_owner, {"from": guild_owner})
