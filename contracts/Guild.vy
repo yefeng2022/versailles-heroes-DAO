@@ -29,6 +29,10 @@ interface VotingEscrow:
     def user_point_epoch(addr: address) -> uint256: view
     def user_point_history__ts(addr: address, epoch: uint256) -> uint256: view
 
+interface GasEscrow:
+    def user_point_epoch(addr: address) -> uint256: view
+    def user_point_history__ts(addr: address, epoch: uint256) -> uint256: view
+
 interface RewardVestingEscrow:
     def claimable_tokens(addr: address) -> uint256: view
 
@@ -363,24 +367,25 @@ def claimable_tokens(addr: address) -> uint256:
 def kick(addr: address):
     """
     @notice Kick `addr` for abusing their boost
-    @dev Only if either they had another voting event, or their voting escrow lock expired
+    @dev Only if either they had abusing gas boost, or their voting escrow lock expired
     @param addr Address to kick
     """
 
     _voting_escrow: address = self.voting_escrow
+    _gas_escrow: address = self.gas_escrow
     t_last: uint256 = self.integrate_checkpoint_of[addr]
-    t_ve: uint256 = VotingEscrow(_voting_escrow).user_point_history__ts(
-        addr, VotingEscrow(_voting_escrow).user_point_epoch(addr))
-    _balance: uint256 = self.balanceOf[addr]
+    t_gas: uint256 = GasEscrow(_gas_escrow).user_point_history__ts(
+        addr, GasEscrow(_gas_escrow).user_point_epoch(addr))
+    _balance: uint256 = ERC20(self.voting_escrow).balanceOf(addr)
+    _gas_balance: uint256 = ERC20(self.gas_escrow).balanceOf(addr)
 
-    assert ERC20(self.voting_escrow).balanceOf(addr) == 0 or t_ve > t_last # dev: kick not allowed
-    assert self.working_balances[addr] > _balance * TOKENLESS_PRODUCTION / 100  # dev: kick not needed
+    assert (_balance == 0) or (_gas_balance == 0 or t_gas > t_last)  # dev: kick not allowed
+    assert self.working_balances[addr] > _balance * 2 * TOKENLESS_PRODUCTION / 100 # dev: kick not needed
 
     self._checkpoint(addr)
-    _user_voting_power: uint256 = ERC20(_voting_escrow).balanceOf(addr)
+    _user_voting_power: uint256 = _balance
     _guild_voting_power: uint256 = GuildController(self.controller).get_guild_weight(self)
     self._update_liquidity_limit(addr, _user_voting_power, _guild_voting_power)
-    GuildController(self.controller).remove_member(addr)
 
 
 @external

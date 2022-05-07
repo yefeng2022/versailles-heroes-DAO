@@ -294,6 +294,74 @@ def test_boosting(chain, accounts, token, gas_token, voting_escrow, guild_contro
     assert approx(alice_reward_2, bob_reward_2, 1e-5)
 
 
+def test_kick(chain, accounts, Guild, voting_escrow, token, guild_controller, gas_token, GasEscrow):
+    alice, bob, carl, dan = accounts[:4]
+    amount_dan = 10000 * 10 ** 18
+    token.transfer(dan, amount_dan, {"from": alice})
+    token.approve(voting_escrow.address, amount_dan * 10, {"from": dan})
+    # dan create lock can not less than one year
+    with brownie.reverts("Voting lock must be 1 year min"):
+        voting_escrow.create_lock(amount_dan, chain[-1].timestamp + 12 * WEEK, {"from": dan})
+
+    voting_escrow.create_lock(amount_dan, chain[-1].timestamp + YEAR + 10000, {"from": dan})
+    # alice create guild
+    guild = create_guild(chain, guild_controller, gas_token, alice, 0, Guild)
+
+    # Move to timing which is good for testing - beginning of a UTC week
+    chain.sleep((chain[-1].timestamp // WEEK + 1) * WEEK - chain[-1].timestamp)
+    chain.mine()
+
+    # dan join guild
+    guild.join_guild({"from": dan})
+    # dan get boost
+    gas_amount = 100000 * 10 ** 18
+    setup_gas_token(accounts, dan, gas_amount, gas_token, guild_controller, GasEscrow)
+    gas_escrow = guild_controller.gas_addr_escrow(gas_token.address)
+    gas_contract = GasEscrow.at(gas_escrow)
+    chain.sleep(60)
+    guild.update_working_balance(dan, {"from": dan})
+
+    chain.sleep(10 * WEEK)
+    with brownie.reverts("dev: kick not allowed"):
+        guild.kick(dan, {"from": alice})
+
+    # bob join guild and leave guild for checkpoint guild.
+    guild.join_guild({"from": bob})
+    chain.sleep(YEAR // 2)
+    guild.leave_guild({"from": bob})
+    chain.sleep(YEAR // 2)
+    chain.mine()
+    guild.kick(dan, {"from": alice})
+    # record dan_integrate_fraction
+    dan_integrate_fraction = guild.integrate_fraction(dan)
+    chain.sleep(WEEK)
+    chain.mine()
+    # dan has no working balance, no rewards any more
+    assert dan_integrate_fraction == guild.integrate_fraction(dan)
+
+    # dan create lock again with 4 yrs
+    voting_escrow.withdraw({"from": dan})
+    voting_escrow.create_lock(amount_dan, chain[-1].timestamp + MAXTIME, {"from": dan})
+    tx = guild.update_working_balance(dan, {"from": dan})
+
+    # bob join guild
+    guild.join_guild({"from": bob})
+    # bob update balance for checkpoint guild.
+    for _ in range(6):
+        chain.sleep(YEAR // 2)
+        chain.mine()
+        voting_escrow.increase_unlock_time(voting_escrow.locked(bob)["end"] + YEAR // 2, {"from": bob})
+        guild.update_working_balance(bob, {"from": bob})
+
+    assert gas_contract.balanceOf(dan) == 0
+    guild.kick(dan, {"from": alice})
+    assert approx(guild.working_balances(dan), voting_escrow.balanceOf(dan) * 0.4, 1e-15)
+    chain.sleep(WEEK)
+    chain.mine()
+    with brownie.reverts("dev: kick not needed"):
+        guild.kick(dan, {"from": alice})
+
+
 def setup_gas_token(accounts, account, gas_amount, gas_token, guild_controller, GasEscrow):
     # deposit game token to gas escrow and boost
     gas_token.transfer(account, gas_amount, {"from": accounts[0]})

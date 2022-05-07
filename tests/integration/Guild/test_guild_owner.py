@@ -131,7 +131,6 @@ def test_set_commission_rate(chain, accounts, gas_token, guild_controller, Guild
     alice = accounts[0]
     bob = accounts[1]
     guild = create_guild(chain, guild_controller, gas_token, alice, Guild)
-    # TODO 2 Weeks can not change commission rate?
     chain.sleep(2 * WEEK + 1)
     chain.mine()
     with brownie.reverts("Only guild owner can change commission rate"):
