@@ -172,8 +172,6 @@ def _get_commission_rate() -> uint256:
                 break
             t += WEEK
             self.commission_rate[t] = w
-            if t > block.timestamp:
-                self.last_change_rate = t
         return w
     else:
         return 0
