@@ -55,7 +55,6 @@ vrh_token: public(address)
 controller: public(address)
 voting_escrow: public(address)
 gas_escrow: public(address)
-balanceOf: public(HashMap[address, uint256])
 future_epoch_time: public(uint256)
 
 working_balances: public(HashMap[address, uint256])
