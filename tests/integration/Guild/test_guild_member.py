@@ -362,6 +362,44 @@ def test_kick(chain, accounts, Guild, voting_escrow, token, guild_controller, ga
         guild.kick(dan, {"from": alice})
 
 
+def test_gas_escrow_create_end(chain, accounts, Guild, voting_escrow, token, guild_controller, gas_token, GasEscrow):
+    alice, bob = accounts[:2]
+
+    # alice create guild
+    guild = create_guild(chain, guild_controller, gas_token, alice, 0, Guild)
+
+    # Move to timing which is good for testing - beginning of a UTC week
+    chain.sleep((chain[-1].timestamp // WEEK + 1) * WEEK - chain[-1].timestamp)
+    chain.mine()
+
+    gas_escrow = guild_controller.gas_addr_escrow(gas_token.address)
+    gas_contract = GasEscrow.at(gas_escrow)
+
+    gas_amount = 100000 * 10 ** 18
+    # alice get boost
+    setup_gas_token(accounts, alice, gas_amount, gas_token, guild_controller, GasEscrow)
+    guild.update_working_balance(alice, {"from": alice})
+    # advance 4 yrs
+    for i in range(8):
+        chain.sleep(YEAR // 2)
+        chain.mine()
+        voting_escrow.increase_unlock_time(voting_escrow.locked(alice)["end"] + YEAR // 2, {"from": alice})
+        increase_gas = 10 * 10 ** 18
+        if i % 2 == 0:
+            gas_contract.increase_amount(increase_gas, {"from": alice})
+        guild.update_working_balance(alice, {"from": alice})
+
+    # check gas balance to 0
+    assert gas_contract.balanceOf(alice) == 0
+
+    # clear gas
+    gas_contract.clear_gas({"from": alice})
+    chain.sleep(100)
+    chain.mine()
+    # can create gas again
+    setup_gas_token(accounts, alice, gas_amount, gas_token, guild_controller, GasEscrow)
+
+
 def setup_gas_token(accounts, account, gas_amount, gas_token, guild_controller, GasEscrow):
     # deposit game token to gas escrow and boost
     gas_token.transfer(account, gas_amount, {"from": accounts[0]})
