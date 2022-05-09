@@ -183,7 +183,7 @@ def test_bonus_for_owner(chain, accounts, token, gas_token, guild_controller, Gu
     chain.sleep(10)
     chain.mine()
     commission_rate = guild.commission_rate(effective_timestamp)
-    alice_bonus = rate * dt * commission_rate / 100
+    alice_bonus = rate * dt * commission_rate // 100
     alice_bonus_1 = guild.total_owner_bonus(alice)
     assert approx(alice_bonus, alice_bonus_1, TOL)
 
@@ -208,7 +208,7 @@ def test_bonus_for_owner(chain, accounts, token, gas_token, guild_controller, Gu
     guild.update_working_balance(alice, {"from": alice})
     alice_checkpoint_reward_2 = guild.integrate_fraction(alice)
     alice_bonus_2 = guild.total_owner_bonus(alice)
-    expected_bonus = rate * elapsed_time * commission_rate / 100
+    expected_bonus = rate * elapsed_time * commission_rate // 100
     assert approx(expected_bonus, alice_bonus_2 - alice_bonus_1, TOL)
 
     # commission rate 19% start apply at 4
@@ -217,7 +217,7 @@ def test_bonus_for_owner(chain, accounts, token, gas_token, guild_controller, Gu
     chain.sleep(dt)
     chain.mine()
 
-    expected_alice_bonus = rate * dt * commission_rate / 100
+    expected_alice_bonus = rate * dt * commission_rate // 100
     # check rewards between 4 and 5
     guild.update_working_balance(bob, {"from": bob})
     guild.update_working_balance(alice, {"from": alice})
@@ -242,7 +242,7 @@ def test_bonus_for_owner(chain, accounts, token, gas_token, guild_controller, Gu
     bob_checkpoint_reward_4 = guild.integrate_fraction(bob)
     alice_rewards_4 = alice_checkpoint_reward_4 - alice_checkpoint_reward_3
     bob_rewards_4 = bob_checkpoint_reward_4 - bob_checkpoint_reward_3
-    bob_bonus = rate * dt * commission_rate / 100
+    bob_bonus = rate * dt * commission_rate // 100
     assert approx(bob_rewards_4 - bob_bonus, alice_rewards_4, TOL)
     # assert guild.total_owner_bonus(alice) == alice_owner_bonus
     assert approx(guild.total_owner_bonus(alice), alice_owner_bonus)
