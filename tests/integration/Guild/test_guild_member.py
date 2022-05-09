@@ -49,7 +49,8 @@ def initial_setup(chain, accounts, token, gas_token, voting_escrow, guild_contro
     chain.sleep(10)
 
 
-def test_join_guild_twice(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, reward_vesting, Guild):
+def test_join_guild_twice(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, reward_vesting,
+                          Guild):
     """
     Test join guild
     """
@@ -297,13 +298,14 @@ def test_boosting(chain, accounts, token, gas_token, voting_escrow, guild_contro
 def test_kick(chain, accounts, Guild, voting_escrow, token, guild_controller, gas_token, GasEscrow):
     alice, bob, carl, dan = accounts[:4]
     amount_dan = 10000 * 10 ** 18
-    token.transfer(dan, amount_dan, {"from": alice})
+    # token.transfer(dan, amount_dan, {"from": alice})
     token.approve(voting_escrow.address, amount_dan * 10, {"from": dan})
     # dan create lock can not less than one year
     with brownie.reverts("Voting lock must be 1 year min"):
         voting_escrow.create_lock(amount_dan, chain[-1].timestamp + 12 * WEEK, {"from": dan})
 
-    voting_escrow.create_lock(amount_dan, chain[-1].timestamp + YEAR + 10000, {"from": dan})
+    # alice create lock for dan
+    voting_escrow.create_lock_for(dan, amount_dan, chain[-1].timestamp + YEAR + 10000, {"from": alice})
     # alice create guild
     guild = create_guild(chain, guild_controller, gas_token, alice, 0, Guild)
 
@@ -399,6 +401,22 @@ def test_gas_escrow_create_end(chain, accounts, Guild, voting_escrow, token, gui
     chain.mine()
     # can create gas again
     setup_gas_token(accounts, alice, gas_amount, gas_token, guild_controller, GasEscrow)
+
+
+def test_vote_escrow_create_for(chain, accounts, Guild, voting_escrow, token, guild_controller, gas_token, GasEscrow):
+    alice, bob, carl, dan = accounts[:4]
+    amount_dan = 10000 * 10 ** 18
+    # token.transfer(dan, amount_dan, {"from": alice})
+    token.approve(voting_escrow.address, amount_dan * 10, {"from": dan})
+    # dan create lock can not less than one year
+
+    voting_escrow.create_lock_for(dan, amount_dan, chain[-1].timestamp + YEAR + 10000, {"from": alice})
+
+    with brownie.reverts("Can not create lock for contract"):
+        voting_escrow.create_lock_for(token, amount_dan, chain[-1].timestamp + YEAR + 10000, {"from": alice})
+
+    with brownie.reverts("dev: use create lock"):
+        voting_escrow.create_lock_for(alice, amount_dan, chain[-1].timestamp + YEAR + 10000, {"from": alice})
 
 
 def setup_gas_token(accounts, account, gas_amount, gas_token, guild_controller, GasEscrow):
