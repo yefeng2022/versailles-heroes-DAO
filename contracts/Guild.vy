@@ -340,7 +340,9 @@ def update_working_balance(addr: address) -> bool:
     _controller: address = self.controller
     assert GuildController(_controller).belongs_to_guild(addr, self)
     
-    GuildController(_controller).refresh_guild_votes(addr, self)
+    _balance: uint256 = ERC20(self.voting_escrow).balanceOf(addr)
+    if _balance != 0:
+        GuildController(_controller).refresh_guild_votes(addr, self)
     self._checkpoint(addr)
     _user_voting_power: uint256 = ERC20(self.voting_escrow).balanceOf(addr)
     _guild_voting_power: uint256 = GuildController(_controller).get_guild_weight(self)

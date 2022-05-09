@@ -336,13 +336,14 @@ def test_kick(chain, accounts, Guild, voting_escrow, token, guild_controller, ga
     dan_integrate_fraction = guild.integrate_fraction(dan)
     chain.sleep(WEEK)
     chain.mine()
+    guild.update_working_balance(dan, {"from": dan})
     # dan has no working balance, no rewards any more
     assert dan_integrate_fraction == guild.integrate_fraction(dan)
 
     # dan create lock again with 4 yrs
     voting_escrow.withdraw({"from": dan})
     voting_escrow.create_lock(amount_dan, chain[-1].timestamp + MAXTIME, {"from": dan})
-    tx = guild.update_working_balance(dan, {"from": dan})
+    guild.update_working_balance(dan, {"from": dan})
 
     # bob join guild
     guild.join_guild({"from": bob})
