@@ -108,7 +108,21 @@ def test_leave_guild(chain, accounts, token, gas_token, voting_escrow, guild_con
     print(tx.events)
     # integration fraction
     expect_integrate_fraction = guild.integrate_fraction(bob)
-    assert integrate_fraction_after_leave_guild == expect_integrate_fraction
+
+    guild.join_guild({"from": bob})
+    assert integrate_fraction_after_leave_guild == expect_integrate_fraction, "should not increase integrate fraction between leave guild and join guild"
+    
+    for _ in range(8): # forward 4 years
+        chain.sleep(26 * WEEK) # forward 6 months
+        chain.mine()
+        guild.user_checkpoint(bob, {"from": bob}) # perform user_checkpoint to avoid out of gas
+    
+    assert voting_escrow.balanceOf(bob) == 0, "balance should be 0 when vote lock ends"
+
+    tx = guild.leave_guild({"from": bob}) # should not error if balance is 0 when leaving guild
+
+    assert guild_controller.global_member_list(bob) == brownie.ZERO_ADDRESS, "user should no longer in guild"
+    assert guild.integrate_fraction(bob) == minter.minted(bob, guild.address), "user's claimable tokens should already minted completely"
 
 
 def test_increase_amount_guild_weight_increase(chain, accounts, token, gas_token, voting_escrow, guild_controller,
@@ -126,11 +140,11 @@ def test_increase_amount_guild_weight_increase(chain, accounts, token, gas_token
     voting_escrow.increase_amount(increase_amount, {"from": alice})
     alice_power_after_increase = voting_escrow.balanceOf(alice)
     alice_slope = voting_escrow.get_last_user_slope(alice)
-    guild.update_working_balance(alice, {"from": alice})
+    guild.user_checkpoint(alice, {"from": alice})
     chain.sleep(10)
     chain.mine()
     # update working balance once more for check
-    guild.update_working_balance(alice, {"from": alice})
+    guild.user_checkpoint(alice, {"from": alice})
     alice_power_at_next_time = alice_power_after_increase - alice_slope * (
             (chain[-1].timestamp // WEEK + 1) * WEEK - chain[-1].timestamp)
     guild_voting_weight = guild_controller.get_guild_weight(guild.address)
@@ -169,7 +183,7 @@ def test_guild_integral_without_boosting(chain, accounts, token, gas_token, voti
 
     chain.sleep(10000)
     chain.mine()
-    guild.update_working_balance(alice, {"from": alice})
+    guild.user_checkpoint(alice, {"from": alice})
     checkpoint_supply = guild.working_supply()
     checkpoint_balance = guild.working_balances(alice)
     update_integral(True)
@@ -184,12 +198,12 @@ def test_guild_integral_without_boosting(chain, accounts, token, gas_token, voti
     dt = randrange(1, WEEK)
     chain.sleep(dt)
     chain.mine()
-    guild.update_working_balance(bob, {"from": bob})
+    guild.user_checkpoint(bob, {"from": bob})
     update_integral(False)
 
-    guild.update_working_balance(alice, {"from": alice})
+    guild.user_checkpoint(alice, {"from": alice})
     update_integral(True)
-    assert approx(guild.integrate_fraction(alice), integral, 1e-12)
+    assert approx(guild.integrate_fraction(alice), integral, TOL)
     for i in range(40):
         is_alice = random() < 0.2
         dt = randrange(1, YEAR // 20)
@@ -208,20 +222,20 @@ def test_guild_integral_without_boosting(chain, accounts, token, gas_token, voti
             update_integral(True)
 
         if random() < 0.5:
-            guild.update_working_balance(alice, {"from": alice})
+            guild.user_checkpoint(alice, {"from": alice})
             update_integral(True)
         if random() < 0.5:
-            guild.update_working_balance(bob, {"from": bob})
+            guild.user_checkpoint(bob, {"from": bob})
             update_integral(False)
 
         dt = randrange(1, YEAR // 20)
         chain.sleep(dt)
         chain.mine()
 
-        guild.update_working_balance(alice, {"from": alice})
+        guild.user_checkpoint(alice, {"from": alice})
         update_integral(True)
         print(i, dt / 86400, integral, guild.integrate_fraction(alice))
-        assert approx(guild.integrate_fraction(alice), integral, 1e-12)
+        assert approx(guild.integrate_fraction(alice), integral, TOL)
 
 
 def test_boosting(chain, accounts, token, gas_token, voting_escrow, guild_controller,
@@ -235,20 +249,20 @@ def test_boosting(chain, accounts, token, gas_token, voting_escrow, guild_contro
     # skip boost warm up
     chain.sleep(2 * WEEK + 1)
     chain.mine()
-    guild.update_working_balance(alice, {"from": alice})
+    guild.user_checkpoint(alice, {"from": alice})
 
     chain.sleep(10)
     chain.mine()
     gas_amount = 100000 * 10 ** 18
     # alice get boost
     setup_gas_token(accounts, alice, gas_amount, gas_token, guild_controller, GasEscrow)
-    guild.update_working_balance(alice, {"from": alice})
+    guild.user_checkpoint(alice, {"from": alice})
     # bob join guild
     guild.join_guild({"from": bob})
     chain.sleep(10)
     chain.mine()
-    guild.update_working_balance(bob, {"from": bob})
-    guild.update_working_balance(alice, {"from": alice})
+    guild.user_checkpoint(bob, {"from": bob})
+    guild.user_checkpoint(alice, {"from": alice})
     # record alice and bob integrate fraction
     alice_integrate_fraction_1st = guild.integrate_fraction(alice)
     bob_integrate_fraction_1st = guild.integrate_fraction(bob)
@@ -257,11 +271,11 @@ def test_boosting(chain, accounts, token, gas_token, voting_escrow, guild_contro
     chain.sleep(dt)
     chain.mine()
     # check integrate fraction of bob and alice
-    guild.update_working_balance(bob, {"from": bob})
+    guild.user_checkpoint(bob, {"from": bob})
     bob_integrate_fraction_2nd = guild.integrate_fraction(bob)
     bob_reward = bob_integrate_fraction_2nd - bob_integrate_fraction_1st
 
-    guild.update_working_balance(alice, {"from": alice})
+    guild.user_checkpoint(alice, {"from": alice})
     alice_integrate_fraction_2nd = guild.integrate_fraction(alice)
     alice_reward = alice_integrate_fraction_2nd - alice_integrate_fraction_1st
     # alice get 2.5x rewards compare with bob
@@ -269,7 +283,7 @@ def test_boosting(chain, accounts, token, gas_token, voting_escrow, guild_contro
 
     # carl join in, this will increase S and make sure alice, bob boost 2.5x
     guild.join_guild({"from": carl})
-    guild.update_working_balance(carl, {"from": carl})
+    guild.user_checkpoint(carl, {"from": carl})
 
     # check alice gas amount
     gas_escrow = guild_controller.gas_addr_escrow(gas_token.address)
@@ -277,17 +291,17 @@ def test_boosting(chain, accounts, token, gas_token, voting_escrow, guild_contro
     # add same gas for bob with alice
     setup_gas_token(accounts, bob, alice_gas_amount, gas_token, guild_controller, GasEscrow)
     # record bob integrate fraction
-    tx = guild.update_working_balance(bob, {"from": bob})
+    tx = guild.user_checkpoint(bob, {"from": bob})
     bob_integrate_fraction_2nd = guild.integrate_fraction(bob)
 
     dt = randrange(1, WEEK)
     chain.sleep(dt)
     chain.mine()
     # get alice integrate fraction
-    guild.update_working_balance(alice, {"from": alice})
+    guild.user_checkpoint(alice, {"from": alice})
     alice_integrate_fraction_3nd = guild.integrate_fraction(alice)
     # get bob integrate fraction
-    guild.update_working_balance(bob, {"from": bob})
+    guild.user_checkpoint(bob, {"from": bob})
     bob_integrate_fraction_3nd = guild.integrate_fraction(bob)
     # alice get same rewards with bob
     alice_reward_2 = alice_integrate_fraction_3nd - alice_integrate_fraction_2nd
@@ -321,7 +335,7 @@ def test_kick(chain, accounts, Guild, voting_escrow, token, guild_controller, ga
     gas_escrow = guild_controller.gas_addr_escrow(gas_token.address)
     gas_contract = GasEscrow.at(gas_escrow)
     chain.sleep(60)
-    guild.update_working_balance(dan, {"from": dan})
+    guild.user_checkpoint(dan, {"from": dan})
 
     chain.sleep(10 * WEEK)
     with brownie.reverts("dev: kick not allowed"):
@@ -338,14 +352,14 @@ def test_kick(chain, accounts, Guild, voting_escrow, token, guild_controller, ga
     dan_integrate_fraction = guild.integrate_fraction(dan)
     chain.sleep(WEEK)
     chain.mine()
-    guild.update_working_balance(dan, {"from": dan})
+    guild.user_checkpoint(dan, {"from": dan})
     # dan has no working balance, no rewards any more
     assert dan_integrate_fraction == guild.integrate_fraction(dan)
 
     # dan create lock again with 4 yrs
     voting_escrow.withdraw({"from": dan})
     voting_escrow.create_lock(amount_dan, chain[-1].timestamp + MAXTIME, {"from": dan})
-    guild.update_working_balance(dan, {"from": dan})
+    guild.user_checkpoint(dan, {"from": dan})
 
     # bob join guild
     guild.join_guild({"from": bob})
@@ -354,7 +368,7 @@ def test_kick(chain, accounts, Guild, voting_escrow, token, guild_controller, ga
         chain.sleep(YEAR // 2)
         chain.mine()
         voting_escrow.increase_unlock_time(voting_escrow.locked(bob)["end"] + YEAR // 2, {"from": bob})
-        guild.update_working_balance(bob, {"from": bob})
+        guild.user_checkpoint(bob, {"from": bob})
 
     assert gas_contract.balanceOf(dan) == 0
     guild.kick(dan, {"from": alice})
@@ -381,7 +395,7 @@ def test_gas_escrow_create_end(chain, accounts, Guild, voting_escrow, token, gui
     gas_amount = 100000 * 10 ** 18
     # alice get boost
     setup_gas_token(accounts, alice, gas_amount, gas_token, guild_controller, GasEscrow)
-    guild.update_working_balance(alice, {"from": alice})
+    guild.user_checkpoint(alice, {"from": alice})
     # advance 4 yrs
     for i in range(8):
         chain.sleep(YEAR // 2)
@@ -390,7 +404,7 @@ def test_gas_escrow_create_end(chain, accounts, Guild, voting_escrow, token, gui
         increase_gas = 10 * 10 ** 18
         if i % 2 == 0:
             gas_contract.increase_amount(increase_gas, {"from": alice})
-        guild.update_working_balance(alice, {"from": alice})
+        guild.user_checkpoint(alice, {"from": alice})
 
     # check gas balance to 0
     assert gas_contract.balanceOf(alice) == 0
@@ -436,5 +450,5 @@ def create_guild(chain, guild_controller, gas_token, guild_owner, commission_rat
     guild_controller.create_guild(guild_owner, guild_type, commission_rate, {"from": guild_owner})
     guild_address = guild_controller.guild_owner_list(guild_owner)
     guild_contract = Guild.at(guild_address)
-    guild_contract.update_working_balance(guild_owner, {"from": guild_owner})
+    guild_contract.user_checkpoint(guild_owner, {"from": guild_owner})
     return guild_contract

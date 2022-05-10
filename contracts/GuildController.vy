@@ -30,7 +30,7 @@ interface GasEscrow:
     def initialize(_admin: address, _token: address, _name: String[64], _symbol: String[32]) -> bool: nonpayable
 
 interface Minter:
-    def mint_for(guild_addr: address, _for: address): nonpayable
+    def mint_from_controller(guild_addr: address, _for: address): nonpayable
 
 event CommitOwnership:
     admin: address
@@ -124,7 +124,7 @@ guilds: public(address[1000000000])
 guild_types_: HashMap[address, int128]
 
 vote_user_slopes: public(HashMap[address, HashMap[address, VotedSlope]])  # user -> guild_addr -> VotedSlope
-last_user_vote: public(HashMap[address, HashMap[address, uint256]])  # Last user vote's timestamp for each guild address
+last_user_join: public(HashMap[address, HashMap[address, uint256]])  # Last user join's timestamp for each guild address
 
 points_weight: public(HashMap[address, HashMap[uint256, Point]])  # guild_addr -> time -> Point
 changes_weight: HashMap[address, HashMap[uint256, uint256]]  # guild_addr -> time -> slope
@@ -617,9 +617,6 @@ def _vote_for_guild(user_addr: address, guild_addr: address, vote: bool):
 
     self.vote_user_slopes[user_addr][guild_addr] = new_slope
 
-    # Record last action time
-    self.last_user_vote[user_addr][guild_addr] = block.timestamp
-
     log VoteForGuild(block.timestamp, user_addr, guild_addr, vote, new_bias)
 
 
@@ -668,11 +665,9 @@ def get_weights_sum_per_type(type_id: int128) -> uint256:
 
 @external 
 def refresh_guild_votes(user_addr: address, guild_addr: address):
-    # Can only be triggered by the guild
-    assert msg.sender == guild_addr
-    # To check if user_addr is in the guild
+    assert msg.sender == guild_addr # dev: guild access only
     _guild_addr: address = self.global_member_list[user_addr]
-    assert _guild_addr != ZERO_ADDRESS and _guild_addr == guild_addr
+    assert _guild_addr != ZERO_ADDRESS and _guild_addr == guild_addr, "User not in guild"
     self._vote_for_guild(user_addr, guild_addr, True)
 
 
@@ -685,24 +680,31 @@ def belongs_to_guild(user_addr: address, guild_addr: address) -> bool:
 def add_member(guild_addr: address, user_addr: address):
     guild_type: int128 = self.guild_types_[guild_addr] - 1
     assert guild_type >= 0, "Not a guild"
-    assert msg.sender == guild_addr # can only be accessed by guild
+    assert msg.sender == guild_addr # dev: guild access only
     assert user_addr != ZERO_ADDRESS, "Not valid address"
     assert self.global_member_list[user_addr] == ZERO_ADDRESS, "Already in a guild"
+    assert VotingEscrow(self.voting_escrow).balanceOf(user_addr) > 0, "Insufficient votes"
 
     self._vote_for_guild(user_addr, guild_addr, True)
+    self.last_user_join[user_addr][guild_addr] = block.timestamp
     self.global_member_list[user_addr] = guild_addr
     log AddMember(guild_addr, user_addr)
 
 
 @external
 def remove_member(user_addr: address):
-    guild_addr: address = msg.sender # to ensure this function can only be triggered from Guild
+    guild_addr: address = msg.sender # dev: guild access only
     assert self.global_member_list[user_addr] == guild_addr, "Cannot access other guilds"
     assert self.guild_owner_list[user_addr] == ZERO_ADDRESS, "Owner cannot leave guild"
-    assert block.timestamp >= self.last_user_vote[user_addr][guild_addr] + WEIGHT_VOTE_DELAY, "Leave guild too soon"
+    assert block.timestamp >= self.last_user_join[user_addr][guild_addr] + WEIGHT_VOTE_DELAY, "Leave guild too soon"
 
-    Minter(self.minter).mint_for(guild_addr, user_addr) # to mint before leaving guild
-    self._vote_for_guild(user_addr, guild_addr, False)
+    Minter(self.minter).mint_from_controller(guild_addr, user_addr) # to mint before leaving guild
+    _balance: uint256 = VotingEscrow(self.voting_escrow).balanceOf(user_addr)
+
+    # if balance is already 0, vote_for_guild is not necessary as 
+    # Minter.mint_for will perform checkpoint_guild to decay guild votes
+    if _balance != 0:
+        self._vote_for_guild(user_addr, guild_addr, False)
     self.global_member_list[user_addr] = ZERO_ADDRESS
     log RemoveMember(guild_addr, user_addr)
 

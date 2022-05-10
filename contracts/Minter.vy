@@ -4,6 +4,7 @@ interface Guild:
     # Presumably, other gauges will provide the same interfaces
     def integrate_fraction(addr: address) -> uint256: view
     def update_working_balance(addr: address) -> bool: nonpayable
+    def user_checkpoint(addr: address) -> bool: nonpayable
 
 interface MERC20:
     def mint(_to: address, _value: uint256) -> bool: nonpayable
@@ -40,13 +41,19 @@ def __init__(_token: address, _controller: address, _vestingEscrow: address):
     self.vestingEscrow = _vestingEscrow
 
 @internal
-def _mint_for(guild_addr: address, _for: address):
+def _mint_for(guild_addr: address, _for: address, leave_guild: bool):
     vested_claimable: uint256 = RewardVestingEscrow(self.vestingEscrow).claim(_for) # claimable amount from existing vesting
     to_mint: uint256 = vested_claimable
     new_vested_locked: uint256 = 0
 
     if guild_addr != ZERO_ADDRESS: # user is in a guild
-        Guild(guild_addr).update_working_balance(_for) # update user's integrate_fraction to the latest
+        if leave_guild:
+            # update user's integrate_fraction to the latest without refreshing guild votes
+            Guild(guild_addr).update_working_balance(_for)
+        else:
+            # update user's integrate_fraction to the latest and refresh guild votes
+            Guild(guild_addr).user_checkpoint(_for)
+
         total_mint: uint256 = Guild(guild_addr).integrate_fraction(_for)
         mintable: uint256 = total_mint - self.minted[_for][guild_addr]
 
@@ -68,27 +75,42 @@ def mint():
     @notice Mint everything which belongs to `msg.sender` and send to them
     """
     guild_addr: address = GuildController(self.controller).global_member_list(msg.sender)
-    self._mint_for(guild_addr, msg.sender)
+    self._mint_for(guild_addr, msg.sender, False)
 
 
 @external
 @nonreentrant('lock')
 def mint_for(guild_addr: address, _for: address):
-    
-    # @notice Mint tokens for `_for`
-    # @dev Only possible when `msg.sender` has been approved via `toggle_approve_mint`
-    # @param guild_addr `Guild` address to get mintable amount from
-    # @param _for Address to mint to
+    """
+    @notice Mint tokens for `_for`
+    @dev Only possible when `msg.sender` has been approved via `toggle_approve_mint`
+    @param guild_addr `Guild` address to get mintable amount from
+    @param _for Address to mint to
+    """
     
     # allowing GuildController to trigger mint via leave_guild function
     if msg.sender == self.controller or self.allowed_to_mint_for[msg.sender][_for]:
-        self._mint_for(guild_addr, _for)
+        self._mint_for(guild_addr, _for, False)
+
+
+@external
+@nonreentrant('lock')
+def mint_from_controller(guild_addr: address, _for: address):
+    """
+    @notice Mint tokens from controller for `_for`
+    @param guild_addr `Guild` address to get mintable amount from
+    @param _for Address to mint to
+    """
+    
+    assert msg.sender == self.controller # dev: GuildController only
+    self._mint_for(guild_addr, _for, True)
 
 
 @external
 def toggle_approve_mint(minting_user: address):
-    
-    # @notice allow `minting_user` to mint for `msg.sender`
-    # @param minting_user Address to toggle permission for
+    """
+    @notice allow `minting_user` to mint for `msg.sender`
+    @param minting_user Address to toggle permission for
+    """
     
     self.allowed_to_mint_for[minting_user][msg.sender] = not self.allowed_to_mint_for[minting_user][msg.sender]

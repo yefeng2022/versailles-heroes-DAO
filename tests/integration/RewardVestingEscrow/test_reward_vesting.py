@@ -257,5 +257,5 @@ def create_guild(chain, guild_controller, gas_token, guild_owner, Guild):
     guild_controller.create_guild(guild_owner, guild_type, commission_rate, {"from": guild_owner})
     guild_address = guild_controller.guild_owner_list(guild_owner)
     guild_contract = Guild.at(guild_address)
-    guild_contract.update_working_balance(guild_owner, {"from": guild_owner})
+    guild_contract.user_checkpoint(guild_owner, {"from": guild_owner})
     return guild_contract

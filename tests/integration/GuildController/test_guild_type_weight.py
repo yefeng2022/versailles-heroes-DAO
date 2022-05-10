@@ -60,7 +60,7 @@ def create_guild(accounts, guild_owner, commission_rate, guild_type, Guild, guil
     guild_controller.create_guild(guild_owner, guild_type, commission_rate, {"from": accounts[0]})
     guild_address = guild_controller.guild_owner_list(guild_owner)
     guild_contract = Guild.at(guild_address)
-    guild_contract.update_working_balance(guild_owner, {"from": guild_owner})
+    guild_contract.user_checkpoint(guild_owner, {"from": guild_owner})
     return guild_contract
 
 

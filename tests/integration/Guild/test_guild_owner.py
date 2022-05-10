@@ -79,7 +79,7 @@ def test_guild_mining(chain, accounts, token, gas_token, voting_escrow, guild_te
     alice = accounts[0]
     guild_alice = create_guild(chain, guild_controller, gas_token, alice, Guild)
     chain.sleep(3 * WEEK)
-    tx = guild_alice.update_working_balance(alice, {"from": alice})
+    tx = guild_alice.user_checkpoint(alice, {"from": alice})
     print(tx.events)
     # print("checkpoint event", tx.events['CheckpointValues'], "\n")
     accumulate_rewards = guild_alice.integrate_fraction(alice)
@@ -178,8 +178,8 @@ def test_bonus_for_owner(chain, accounts, token, gas_token, guild_controller, Gu
 
     # check rewards between 2 and 3
     # expect alice and bob get same rewards apart from owner bonus
-    guild.update_working_balance(alice, {"from": alice})
-    guild.update_working_balance(bob, {"from": bob})
+    guild.user_checkpoint(alice, {"from": alice})
+    guild.user_checkpoint(bob, {"from": bob})
     chain.sleep(10)
     chain.mine()
     commission_rate = guild.commission_rate(effective_timestamp)
@@ -205,7 +205,7 @@ def test_bonus_for_owner(chain, accounts, token, gas_token, guild_controller, Gu
     elapsed_time += (chain[-1].timestamp // WEEK + 1) * WEEK - chain[-1].timestamp
     chain.sleep((chain[-1].timestamp // WEEK + 1) * WEEK - chain[-1].timestamp)
     chain.mine()
-    guild.update_working_balance(alice, {"from": alice})
+    guild.user_checkpoint(alice, {"from": alice})
     alice_checkpoint_reward_2 = guild.integrate_fraction(alice)
     alice_bonus_2 = guild.total_owner_bonus(alice)
     expected_bonus = rate * elapsed_time * commission_rate // 100
@@ -219,8 +219,8 @@ def test_bonus_for_owner(chain, accounts, token, gas_token, guild_controller, Gu
 
     expected_alice_bonus = rate * dt * commission_rate // 100
     # check rewards between 4 and 5
-    guild.update_working_balance(bob, {"from": bob})
-    guild.update_working_balance(alice, {"from": alice})
+    guild.user_checkpoint(bob, {"from": bob})
+    guild.user_checkpoint(alice, {"from": alice})
     alice_checkpoint_reward_3 = guild.integrate_fraction(alice)
     bob_checkpoint_reward_3 = guild.integrate_fraction(bob)
     alice_rewards_3 = alice_checkpoint_reward_3 - alice_checkpoint_reward_2
@@ -236,8 +236,8 @@ def test_bonus_for_owner(chain, accounts, token, gas_token, guild_controller, Gu
     chain.sleep(dt)
     chain.mine()
     # check rewards at 5
-    guild.update_working_balance(bob, {"from": bob})
-    guild.update_working_balance(alice, {"from": alice})
+    guild.user_checkpoint(bob, {"from": bob})
+    guild.user_checkpoint(alice, {"from": alice})
     alice_checkpoint_reward_4 = guild.integrate_fraction(alice)
     bob_checkpoint_reward_4 = guild.integrate_fraction(bob)
     alice_rewards_4 = alice_checkpoint_reward_4 - alice_checkpoint_reward_3
@@ -245,7 +245,7 @@ def test_bonus_for_owner(chain, accounts, token, gas_token, guild_controller, Gu
     bob_bonus = rate * dt * commission_rate // 100
     assert approx(bob_rewards_4 - bob_bonus, alice_rewards_4, TOL)
     # assert guild.total_owner_bonus(alice) == alice_owner_bonus
-    assert approx(guild.total_owner_bonus(alice), alice_owner_bonus)
+    assert approx(guild.total_owner_bonus(alice), alice_owner_bonus, TOL)
     assert approx(bob_bonus, guild.total_owner_bonus(bob), TOL)
 
 
@@ -287,5 +287,5 @@ def create_guild(chain, guild_controller, gas_token, guild_owner, Guild):
     guild_controller.create_guild(guild_owner, guild_type, commission_rate, {"from": guild_owner})
     guild_address = guild_controller.guild_owner_list(guild_owner)
     guild_contract = Guild.at(guild_address)
-    guild_contract.update_working_balance(guild_owner, {"from": guild_owner})
+    guild_contract.user_checkpoint(guild_owner, {"from": guild_owner})
     return guild_contract
