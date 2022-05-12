@@ -102,26 +102,6 @@ event SetCommissionRate:
     commission_rate: uint256
     effective_time: uint256
 
-# for testing, to be removed
-event CheckpointValues:
-    i: uint256
-    prev_future_epoch: uint256
-    prev_week_time: uint256
-    week_time: uint256
-    commission_rate: uint256
-    dt: uint256
-    w: uint256
-    rate: uint256
-    integrate_inv_supply: uint256
-    working_supply: uint256
-    owner_bonus: uint256
-
-# for testing, to be removed
-event CalculationValues:
-    boost: uint256
-    gas_amount: uint256
-    gas_total: uint256
-
 @external
 def __init__():
     self.owner = msg.sender
@@ -244,9 +224,6 @@ def _checkpoint(addr: address):
                 # _working_supply ~= TVL * 1e18 ~= 1e26 ($100M for example)
                 # The largest loss is at dt = 1
                 # Loss is 1e-9 - acceptable
-
-            # log event for debugging, to be removed
-            # log CheckpointValues(i, prev_future_epoch, prev_week_time, week_time, commission_rate, dt, w, rate, _integrate_inv_supply, _working_supply, _owner_bonus / 10 ** 18)
 
             if week_time == block.timestamp:
                 break
