@@ -70,12 +70,12 @@ event NewGuild:
     rate: uint256
 
 event AddMember:
-    guild_addr: address
-    member_addr: address
+    guild_addr: indexed(address)
+    member_addr: indexed(address)
 
 event RemoveMember:
-    guild_addr: address
-    member_addr: address
+    guild_addr: indexed(address)
+    member_addr: indexed(address)
 
 event SetMinter:
     minter: address

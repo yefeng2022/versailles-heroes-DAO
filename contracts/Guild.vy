@@ -85,7 +85,6 @@ owner: public(address) # guild owner address
 
 # Proportion of what the guild owner gets
 commission_rate: public(HashMap[uint256, uint256])  # time -> commission_rate
-last_user_action: public(HashMap[address, uint256])  # Last user vote's timestamp for each guild address
 total_owner_bonus: public(HashMap[address, uint256]) # owner address -> owner bonus
 
 event UpdateLiquidityLimit:
@@ -247,7 +246,7 @@ def _checkpoint(addr: address):
                 # Loss is 1e-9 - acceptable
 
             # log event for debugging, to be removed
-            log CheckpointValues(i, prev_future_epoch, prev_week_time, week_time, commission_rate, dt, w, rate, _integrate_inv_supply, _working_supply, _owner_bonus / 10 ** 18)
+            # log CheckpointValues(i, prev_future_epoch, prev_week_time, week_time, commission_rate, dt, w, rate, _integrate_inv_supply, _working_supply, _owner_bonus / 10 ** 18)
 
             if week_time == block.timestamp:
                 break
