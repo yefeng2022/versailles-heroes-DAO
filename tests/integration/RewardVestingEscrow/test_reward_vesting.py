@@ -16,7 +16,7 @@ INITIAL_RATE = 121_587_840 * 10 ** 18 / YEAR
 
 
 @pytest.fixture(scope="module", autouse=True)
-def initial_setup(web3, chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, vesting):
+def initial_setup(web3, chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, reward_vesting):
     alice, bob = accounts[:2]
     amount_alice = 40000 * 10 ** 18
     amount_bob = 50000 * 10 ** 18
@@ -40,22 +40,22 @@ def initial_setup(web3, chain, accounts, token, gas_token, voting_escrow, guild_
 
     chain.sleep(H)
 
-    stages["before_deposits"] = (web3.eth.blockNumber, chain[-1].timestamp)
+    stages["before_deposits"] = (web3.eth.block_number, chain[-1].timestamp)
 
     voting_escrow.create_lock(amount_alice, chain[-1].timestamp + MAXTIME, {"from": alice})
     voting_escrow.create_lock(amount_bob, chain[-1].timestamp + MAXTIME, {"from": bob})
-    stages["alice_deposit"] = (web3.eth.blockNumber, chain[-1].timestamp)
+    stages["alice_deposit"] = (web3.eth.block_number, chain[-1].timestamp)
 
     chain.sleep(H)
     chain.mine()
 
     token.set_minter(minter.address, {"from": accounts[0]})
     guild_controller.set_minter(minter.address, {"from": accounts[0]})
-    vesting.set_minter(minter.address, {"from": accounts[0]})
+    reward_vesting.set_minter(minter.address, {"from": accounts[0]})
     chain.sleep(10)
 
 
-def test_vesting(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, vesting, Guild):
+def test_vesting(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, reward_vesting, Guild):
     '''
                                   1 vest epoch                  2 vest epoch
                                     |                               |
@@ -82,9 +82,10 @@ def test_vesting(chain, accounts, token, gas_token, voting_escrow, guild_control
     chain.sleep(WEEK)
     chain.mine()
     minter.mint({"from": alice})
+    time_3 = chain[-1].timestamp
     print_time(chain[-1].timestamp)
     # check alice vesting amount
-    actual_alice_1_epoch_vesting_amount = vesting.user_vesting_history(alice, 1)['amount']
+    actual_alice_1_epoch_vesting_amount = reward_vesting.user_vesting_history(alice, 1)['amount']
     expected_alice_1_epoch_vesting_amount = token.rate() * WEEK * 0.7
     assert approx(actual_alice_1_epoch_vesting_amount, expected_alice_1_epoch_vesting_amount, TOL)
     # advance to 5, advance to new vesting epoch
@@ -95,21 +96,22 @@ def test_vesting(chain, accounts, token, gas_token, voting_escrow, guild_control
     chain.sleep(WEEK)
     chain.mine()
     # check vesting claimable amount at 6
-    vesting_claimable_token = vesting.get_claimable_tokens(alice)
-    alice_vesting_slope_5 = vesting.user_vesting_history(alice, 1)['slope']
+    vesting_claimable_token = reward_vesting.get_claimable_tokens(alice)
+    alice_vesting_slope_5 = reward_vesting.user_vesting_history(alice, 1)['slope']
     assert approx(alice_vesting_slope_5 * WEEK, vesting_claimable_token, TOL)
-    # mint second rewards is MONTH - WEEK
+    # mint at 6
     tx = minter.mint({"from": alice})
+    time_6 = chain[-1].timestamp
     print(tx.events)
     chain.sleep(1)
     chain.mine()
     # check vesting claimable token at 6
-    alice_vesting_amount_2_epoch = vesting.user_vesting_history(alice, 2)['amount']
-    alice_vesting_slope_9 = vesting.user_vesting_history(alice, 2)['slope']
-    expect_token_vesting_mintable = token.rate() * (MONTH - WEEK) * 0.7
+    alice_vesting_amount_2_epoch = reward_vesting.user_vesting_history(alice, 2)['amount']
+    alice_vesting_slope_9 = reward_vesting.user_vesting_history(alice, 2)['slope']
+    expect_token_vesting_mintable = token.rate() * (time_6 - time_3) * 0.7
     assert approx(alice_vesting_amount_2_epoch, expect_token_vesting_mintable, TOL)
     # check minted amount at 6
-    token_release_immediate_from_3_6 = token.rate() * (MONTH - WEEK) * 0.3
+    token_release_immediate_from_3_6 = token.rate() * (time_6 - time_3) * 0.3
     expect_minted = alice_vesting_slope_5 * WEEK + token_release_immediate_from_3_6
     actual_minted = tx.events['Minted']['minted']
     assert approx(actual_minted, expect_minted, TOL)
@@ -120,7 +122,7 @@ def test_vesting(chain, accounts, token, gas_token, voting_escrow, guild_control
     chain.mine()
     # check vesting claimable token at 10
     expect_vesting_claimable_token_10 = alice_vesting_slope_5 * MONTH + alice_vesting_slope_9 * WEEK
-    actual_vesting_claimable_token_10 = vesting.get_claimable_tokens(alice)
+    actual_vesting_claimable_token_10 = reward_vesting.get_claimable_tokens(alice)
     assert approx(actual_vesting_claimable_token_10, expect_vesting_claimable_token_10, TOL)
     tx = minter.mint({"from": alice})
     # TODO: WIP
@@ -144,14 +146,14 @@ start       1       2       3       4       5       6       7 |     8 |     9   
         tx = minter.mint({"from": alice})
         print(tx.events)
 
-    actual_epoch_1_remain_amount = vesting.user_vesting_history(alice, 1)['amount']
-    actual_epoch_2_remain_amount = vesting.user_vesting_history(alice, 2)['amount']
+    actual_epoch_1_remain_amount = reward_vesting.user_vesting_history(alice, 1)['amount']
+    actual_epoch_2_remain_amount = reward_vesting.user_vesting_history(alice, 2)['amount']
     # vesting finished after 168 days
     assert actual_epoch_1_remain_amount == 0
     assert actual_epoch_2_remain_amount == 0
 
 
-def test_skip_one_epoch_vesting(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, vesting,
+def test_skip_one_epoch_vesting(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, reward_vesting,
                                 Guild):
     '''
     check skip 2nd vesting epoch and will accumulate rewards to 3nd vesting epoch
@@ -190,13 +192,13 @@ def test_skip_one_epoch_vesting(chain, accounts, token, gas_token, voting_escrow
     print(tx.events)
     mintable_token = INITIAL_RATE * elapsed_time
     expected_vesting_token = mintable_token * 0.7
-    actual_vesting_token = vesting.user_vesting_history(alice, 2)['amount']
+    actual_vesting_token = reward_vesting.user_vesting_history(alice, 2)['amount']
     assert approx(actual_vesting_token, expected_vesting_token, TOL)
 
 
 @given(st_duration=strategy("uint256", min_value=WEEK, max_value=3 * WEEK))
 @settings(max_examples=5)
-def test_mint_twice_in_epoch(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, vesting,
+def test_mint_twice_in_epoch(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, reward_vesting,
                              Guild, st_duration):
     '''
     test mint twice in epoch and will accumulate rewards
@@ -231,12 +233,12 @@ def test_mint_twice_in_epoch(chain, accounts, token, gas_token, voting_escrow, g
     chain.mine()
     minter.mint({"from": alice})
     # get vesting token of
-    vesting_token_at_9_mint_6 = vesting.user_vesting_history(alice, 2)['amount']
+    vesting_token_at_9_mint_6 = reward_vesting.user_vesting_history(alice, 2)['amount']
     # advance to 7 and mint
     chain.sleep(st_duration)
     chain.mine()
     minter.mint({"from": alice})
-    vesting_token_at_9_mint_7 = vesting.user_vesting_history(alice, 2)['amount']
+    vesting_token_at_9_mint_7 = reward_vesting.user_vesting_history(alice, 2)['amount']
     expect_increased_vesting_amount = INITIAL_RATE * st_duration * 0.7
     assert approx(vesting_token_at_9_mint_7 - vesting_token_at_9_mint_6, expect_increased_vesting_amount, TOL)
 
@@ -248,12 +250,12 @@ def print_time(unix_time):
 
 def create_guild(chain, guild_controller, gas_token, guild_owner, Guild):
     guild_type = 0
-    guild_rate = 20
+    commission_rate = 20
     type_weight = 1 * 10 ** 18
     guild_controller.add_type("Gas MOH", "GASMOH", gas_token.address, type_weight)
     chain.sleep(H)
-    guild_controller.create_guild(guild_owner, guild_type, guild_rate, {"from": guild_owner})
+    guild_controller.create_guild(guild_owner, guild_type, commission_rate, {"from": guild_owner})
     guild_address = guild_controller.guild_owner_list(guild_owner)
     guild_contract = Guild.at(guild_address)
-    guild_contract.update_working_balance(guild_owner, {"from": guild_owner})
+    guild_contract.user_checkpoint(guild_owner, {"from": guild_owner})
     return guild_contract

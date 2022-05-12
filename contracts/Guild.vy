@@ -29,7 +29,11 @@ interface VotingEscrow:
     def user_point_epoch(addr: address) -> uint256: view
     def user_point_history__ts(addr: address, epoch: uint256) -> uint256: view
 
-interface VestingEscrow:
+interface GasEscrow:
+    def user_point_epoch(addr: address) -> uint256: view
+    def user_point_history__ts(addr: address, epoch: uint256) -> uint256: view
+
+interface RewardVestingEscrow:
     def claimable_tokens(addr: address) -> uint256: view
 
 
@@ -51,7 +55,6 @@ vrh_token: public(address)
 controller: public(address)
 voting_escrow: public(address)
 gas_escrow: public(address)
-balanceOf: public(HashMap[address, uint256])
 future_epoch_time: public(uint256)
 
 working_balances: public(HashMap[address, uint256])
@@ -82,7 +85,6 @@ owner: public(address) # guild owner address
 
 # Proportion of what the guild owner gets
 commission_rate: public(HashMap[uint256, uint256])  # time -> commission_rate
-last_user_action: public(HashMap[address, uint256])  # Last user vote's timestamp for each guild address
 total_owner_bonus: public(HashMap[address, uint256]) # owner address -> owner bonus
 
 event UpdateLiquidityLimit:
@@ -99,26 +101,6 @@ event TriggerPause:
 event SetCommissionRate:
     commission_rate: uint256
     effective_time: uint256
-
-# for testing, to be removed
-event CheckpointValues:
-    i: uint256
-    prev_future_epoch: uint256
-    prev_week_time: uint256
-    week_time: uint256
-    commission_rate: uint256
-    dt: uint256
-    w: uint256
-    rate: uint256
-    integrate_inv_supply: uint256
-    working_supply: uint256
-    owner_bonus: uint256
-
-# for testing, to be removed
-event CalculationValues:
-    boost: uint256
-    gas_amount: uint256
-    gas_total: uint256
 
 @external
 def __init__():
@@ -147,7 +129,7 @@ def initialize(_owner: address, _commission_rate: uint256, _token: address, _gas
     assert _gas_escrow != ZERO_ADDRESS
     self.gas_escrow = _gas_escrow
 
-    assert _commission_rate > 0 and _commission_rate <= 20, 'Rate has to be minimally 1% and maximum 20%'
+    assert _commission_rate >= 0 and _commission_rate <= 20, 'Rate has to be minimally 0% and maximum 20%'
     next_time: uint256 = (block.timestamp + WEEK) / WEEK * WEEK
     self.commission_rate[next_time] = _commission_rate
     self.last_change_rate = next_time # Record last updated commission rate
@@ -172,8 +154,6 @@ def _get_commission_rate() -> uint256:
                 break
             t += WEEK
             self.commission_rate[t] = w
-            if t > block.timestamp:
-                self.last_change_rate = t
         return w
     else:
         return 0
@@ -245,9 +225,6 @@ def _checkpoint(addr: address):
                 # The largest loss is at dt = 1
                 # Loss is 1e-9 - acceptable
 
-            # log event for debugging, to be removed
-            log CheckpointValues(i, prev_future_epoch, prev_week_time, week_time, commission_rate, dt, w, rate, _integrate_inv_supply, _working_supply, _owner_bonus / 10 ** 18)
-
             if week_time == block.timestamp:
                 break
             prev_week_time = week_time
@@ -260,8 +237,9 @@ def _checkpoint(addr: address):
 
     # Update user-specific integrals
     # calculate owner bonus
-    self.integrate_fraction[self.owner] += _owner_bonus / 10 ** 18
-    self.total_owner_bonus[self.owner] += _owner_bonus / 10 ** 18
+    if _owner_bonus > 0:
+        self.integrate_fraction[self.owner] += _owner_bonus / 10 ** 18
+        self.total_owner_bonus[self.owner] += _owner_bonus / 10 ** 18
 
     # calculate for all members (including owner)
     self.integrate_fraction[addr] += _working_balance * (_integrate_inv_supply - self.integrate_inv_supply_of[addr]) / 10 ** 18
@@ -283,7 +261,7 @@ def set_commission_rate(increase: bool):
         assert commission_rate <= 20, 'Maximum is 20'
     else:
         commission_rate -= 1
-        assert commission_rate > 0, 'Minimum is 1'
+        assert commission_rate >= 0, 'Minimum is 0'
     
     self.commission_rate[next_time] = commission_rate
     self.last_change_rate = next_time
@@ -326,24 +304,44 @@ def _update_liquidity_limit(addr: address, bu: uint256, S: uint256):
 
 
 @external
+def user_checkpoint(addr: address) -> bool:
+    """
+    @notice Record a checkpoint for `addr`
+    @param addr User address
+    @return bool success
+    """
+    assert (msg.sender == addr) or (msg.sender == self.minter)  # dev: unauthorized
+
+    # check that user truly belongs to guild
+    _controller: address = self.controller
+    assert GuildController(_controller).belongs_to_guild(addr, self), "Not in guild"
+    
+    _user_voting_power: uint256 = ERC20(self.voting_escrow).balanceOf(addr)
+    if _user_voting_power != 0:
+        GuildController(_controller).refresh_guild_votes(addr, self)
+    self._checkpoint(addr)
+    _guild_voting_power: uint256 = GuildController(_controller).get_guild_weight(self)
+    self._update_liquidity_limit(addr, _user_voting_power, _guild_voting_power)
+    
+    return True
+
+
+@external
 def update_working_balance(addr: address) -> bool:
     """
     @notice Record a checkpoint for `addr`
     @param addr User address
     @return bool success
     """
-    assert (msg.sender == addr) or (msg.sender == self.minter)
+    assert msg.sender == self.minter  # dev: unauthorized
 
-    # check that user truly belongs to guild
     _controller: address = self.controller
-    assert GuildController(_controller).belongs_to_guild(addr, self)
-    
-    GuildController(_controller).refresh_guild_votes(addr, self)
+    assert GuildController(_controller).belongs_to_guild(addr, self), "Not in guild"
+
     self._checkpoint(addr)
     _user_voting_power: uint256 = ERC20(self.voting_escrow).balanceOf(addr)
     _guild_voting_power: uint256 = GuildController(_controller).get_guild_weight(self)
     self._update_liquidity_limit(addr, _user_voting_power, _guild_voting_power)
-    
     return True
 
 
@@ -356,7 +354,7 @@ def claimable_tokens(addr: address) -> uint256:
     """
     self._checkpoint(addr)
     _vestingEscrow: address = Minter(self.minter).vestingEscrow()
-    _vesting_claimable: uint256 = VestingEscrow(_vestingEscrow).claimable_tokens(addr)
+    _vesting_claimable: uint256 = RewardVestingEscrow(_vestingEscrow).claimable_tokens(addr)
     return self.integrate_fraction[addr] - Minter(self.minter).minted(addr, self) + _vesting_claimable
 
 
@@ -364,24 +362,25 @@ def claimable_tokens(addr: address) -> uint256:
 def kick(addr: address):
     """
     @notice Kick `addr` for abusing their boost
-    @dev Only if either they had another voting event, or their voting escrow lock expired
+    @dev Only if either they had abusing gas boost, or their voting escrow lock expired
     @param addr Address to kick
     """
 
     _voting_escrow: address = self.voting_escrow
+    _gas_escrow: address = self.gas_escrow
     t_last: uint256 = self.integrate_checkpoint_of[addr]
-    t_ve: uint256 = VotingEscrow(_voting_escrow).user_point_history__ts(
-        addr, VotingEscrow(_voting_escrow).user_point_epoch(addr))
-    _balance: uint256 = self.balanceOf[addr]
+    t_gas: uint256 = GasEscrow(_gas_escrow).user_point_history__ts(
+        addr, GasEscrow(_gas_escrow).user_point_epoch(addr))
+    _balance: uint256 = ERC20(self.voting_escrow).balanceOf(addr)
+    _gas_balance: uint256 = ERC20(self.gas_escrow).balanceOf(addr)
 
-    assert ERC20(self.voting_escrow).balanceOf(addr) == 0 or t_ve > t_last # dev: kick not allowed
-    assert self.working_balances[addr] > _balance * TOKENLESS_PRODUCTION / 100  # dev: kick not needed
+    assert (_balance == 0) or (_gas_balance == 0 or t_gas > t_last)  # dev: kick not allowed
+    assert self.working_balances[addr] > _balance * 2 * TOKENLESS_PRODUCTION / 100 # dev: kick not needed
 
     self._checkpoint(addr)
-    _user_voting_power: uint256 = ERC20(_voting_escrow).balanceOf(addr)
+    _user_voting_power: uint256 = _balance
     _guild_voting_power: uint256 = GuildController(self.controller).get_guild_weight(self)
     self._update_liquidity_limit(addr, _user_voting_power, _guild_voting_power)
-    GuildController(self.controller).remove_member(addr)
 
 
 @external

@@ -86,13 +86,13 @@ def guild_controller(GuildController, accounts, token, guild_template, gas_escro
 
 
 @pytest.fixture(scope="module")
-def vesting(VestingEscrow, accounts):
-    yield VestingEscrow.deploy({"from": accounts[0]})
+def reward_vesting(RewardVestingEscrow, accounts):
+    yield RewardVestingEscrow.deploy({"from": accounts[0]})
 
 
 @pytest.fixture(scope="module")
-def minter(Minter, accounts, guild_controller, token, vesting):
-    yield Minter.deploy(token, guild_controller, vesting, {"from": accounts[0]})
+def minter(Minter, accounts, guild_controller, token, reward_vesting):
+    yield Minter.deploy(token, guild_controller, reward_vesting, {"from": accounts[0]})
 
 
 # VestingEscrow fixtures
@@ -106,6 +106,14 @@ def start_time(chain):
 @pytest.fixture(scope="module")
 def end_time(start_time):
     yield start_time + 100000000
+
+
+@pytest.fixture(scope="module")
+def vesting(VestingEscrow, accounts, coin_a, start_time, end_time):
+    contract = VestingEscrow.deploy(coin_a, start_time, end_time, True, accounts[1:5], {"from": accounts[0]})
+    coin_a._mint_for_testing(accounts[0], 10 ** 21)
+    coin_a.approve(contract, 10 ** 21, {"from": accounts[0]})
+    yield contract
 
 
 # testing contracts

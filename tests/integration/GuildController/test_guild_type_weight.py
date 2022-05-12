@@ -16,7 +16,7 @@ TOL = 120 / WEEK
 
 
 @pytest.fixture(scope="module", autouse=True)
-def initial_setup(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, vesting):
+def initial_setup(chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, reward_vesting):
     chain.sleep(DAY + 1)
     token.update_mining_parameters()
     for i in range(1, 10):
@@ -25,7 +25,7 @@ def initial_setup(chain, accounts, token, gas_token, voting_escrow, guild_contro
 
     token.set_minter(minter.address, {"from": accounts[0]})
     guild_controller.set_minter(minter.address, {"from": accounts[0]})
-    vesting.set_minter(minter.address, {"from": accounts[0]})
+    reward_vesting.set_minter(minter.address, {"from": accounts[0]})
 
 
 def setup_account(amount, account, accounts, token, voting_escrow):
@@ -60,7 +60,7 @@ def create_guild(accounts, guild_owner, commission_rate, guild_type, Guild, guil
     guild_controller.create_guild(guild_owner, guild_type, commission_rate, {"from": accounts[0]})
     guild_address = guild_controller.guild_owner_list(guild_owner)
     guild_contract = Guild.at(guild_address)
-    guild_contract.update_working_balance(guild_owner, {"from": guild_owner})
+    guild_contract.user_checkpoint(guild_owner, {"from": guild_owner})
     return guild_contract
 
 

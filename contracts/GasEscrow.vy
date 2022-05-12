@@ -48,6 +48,11 @@ event Deposit:
     type: int128
     ts: uint256
 
+event ClearGas:
+    provider: indexed(address)
+    value: uint256
+    ts: uint256
+
 event Supply:
     prevSupply: uint256
     supply: uint256
@@ -122,7 +127,7 @@ def initialize(_admin: address, _token: address, _name: String[64], _symbol: Str
 @external
 def commit_transfer_ownership(addr: address):
     """
-    @notice Transfer ownership of VotingEscrow contract to `addr`
+    @notice Transfer ownership of GasEscrow contract to `addr`
     @param addr Address to have ownership transferred to
     """
     assert msg.sender == self.admin  # dev: admin only
@@ -179,7 +184,7 @@ def assert_not_contract(addr: address):
 @view
 def get_last_user_slope(addr: address) -> int128:
     """
-    @notice Get the most recently recorded rate of voting power decrease for `addr`
+    @notice Get the most recently recorded rate of gas power decrease for `addr`
     @param addr Address of the user wallet
     @return Value of the slope
     """
@@ -262,7 +267,7 @@ def _checkpoint(addr: address, old_burned: BurnedBalance, new_burned: BurnedBala
     t_i: uint256 = (last_checkpoint / WEEK) * WEEK
     for i in range(255):
         # Hopefully it won't happen that this won't get used in 5 years!
-        # If it does, users will be able to withdraw but vote weight will be broken
+        # If it does, users will be able to clear gas but gas will be broken
         t_i += WEEK
         d_slope: int128 = 0
         if t_i > block.timestamp:
@@ -422,9 +427,35 @@ def increase_amount(_value: uint256):
 
     self._deposit_for(msg.sender, _value, 0, _burned, INCREASE_BURN_AMOUNT)
 
+@external
+@nonreentrant('lock')
+def clear_gas():
+    """
+    @notice clear all tokens for `msg.sender`
+    @dev Only possible if the burn has expired
+    """
+    _burned: BurnedBalance = self.burned[msg.sender]
+    assert block.timestamp >= _burned.end, "The burn didn't expire"
+    value: uint256 = convert(_burned.amount, uint256)
+
+    old_burned: BurnedBalance = _burned
+    _burned.end = 0
+    _burned.amount = 0
+    self.burned[msg.sender] = _burned
+    supply_before: uint256 = self.supply
+    self.supply = supply_before - value
+
+    # old_burned can have either expired <= timestamp or zero end
+    # _burned has only 0 end
+    # Both can have >= 0 amount
+    self._checkpoint(msg.sender, old_burned, _burned)
+
+    log ClearGas(msg.sender, value, block.timestamp)
+    log Supply(supply_before, supply_before - value)
+
 
 # The following ERC20/minime-compatible methods are not real balanceOf and supply!
-# They measure the weights for the purpose of voting, so they don't represent
+# They measure the weights for the purpose of gas, so they don't represent
 # real coins.
 
 @internal
@@ -457,8 +488,8 @@ def balanceOf(addr: address, _t: uint256 = block.timestamp) -> uint256:
     @notice Get the current GAS for `msg.sender`
     @dev Adheres to the ERC20 `balanceOf` interface for Aragon compatibility
     @param addr User wallet address
-    @param _t Epoch time to return voting power at
-    @return User voting power
+    @param _t Epoch time to return gas power at
+    @return User gas power
     """
     _epoch: uint256 = self.user_point_epoch[addr]
     if _epoch == 0:
@@ -475,11 +506,11 @@ def balanceOf(addr: address, _t: uint256 = block.timestamp) -> uint256:
 @view
 def balanceOfAt(addr: address, _block: uint256) -> uint256:
     """
-    @notice Measure voting power of `addr` at block height `_block`
+    @notice Measure gas power of `addr` at block height `_block`
     @dev Adheres to MiniMe `balanceOfAt` interface: https://github.com/Giveth/minime
     @param addr User's wallet address
-    @param _block Block to calculate the voting power at
-    @return Voting power
+    @param _block Block to calculate the gas power at
+    @return gas power
     """
     # Copying and pasting totalSupply code because Vyper cannot pass by
     # reference yet
@@ -526,10 +557,10 @@ def balanceOfAt(addr: address, _block: uint256) -> uint256:
 @view
 def supply_at(point: Point, t: uint256) -> uint256:
     """
-    @notice Calculate total voting power at some point in the past
+    @notice Calculate total gas power at some point in the past
     @param point The point (bias/slope) to start search from
-    @param t Time to calculate the total voting power at
-    @return Total voting power at that time
+    @param t Time to calculate the total gas power at
+    @return Total gas power at that time
     """
     last_point: Point = point
     t_i: uint256 = (last_point.ts / WEEK) * WEEK
@@ -555,9 +586,9 @@ def supply_at(point: Point, t: uint256) -> uint256:
 @view
 def totalSupply(t: uint256 = block.timestamp) -> uint256:
     """
-    @notice Calculate total voting power
+    @notice Calculate total gas power
     @dev Adheres to the ERC20 `totalSupply` interface for Aragon compatibility
-    @return Total voting power
+    @return Total gas power
     """
     _epoch: uint256 = self.epoch
     last_point: Point = self.point_history[_epoch]
@@ -568,9 +599,9 @@ def totalSupply(t: uint256 = block.timestamp) -> uint256:
 @view
 def totalSupplyAt(_block: uint256) -> uint256:
     """
-    @notice Calculate total voting power at some point in the past
-    @param _block Block to calculate the total voting power at
-    @return Total voting power at `_block`
+    @notice Calculate total gas power at some point in the past
+    @param _block Block to calculate the total gas power at
+    @return Total gas power at `_block`
     """
     assert _block <= block.number
     _epoch: uint256 = self.epoch
