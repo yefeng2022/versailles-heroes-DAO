@@ -2,8 +2,6 @@
 
 from vyper.interfaces import ERC20
 
-ACTION_DELAY: constant(uint256) = 3 * 86400
-
 interface VRH20:
     def future_epoch_time_write() -> uint256: nonpayable
     def rate() -> uint256: view
@@ -38,17 +36,9 @@ interface RewardVestingEscrow:
 
 
 DECIMALS: constant(uint256) = 10 ** 18
-working_balance_result: public(HashMap[address,uint256])
-working_balance_total: public(uint256)
-boost: public(HashMap[address,uint256])
-ratio: public(HashMap[address,uint256])
 
 TOKENLESS_PRODUCTION: constant(uint256) = 40
 BOOST_WARMUP: constant(uint256) = 2 * 7 * 86400
-
-
-working_balance: public(uint256)
-addition: public(uint256)
 
 minter: public(address)
 vrh_token: public(address)
@@ -284,7 +274,6 @@ def _update_liquidity_limit(addr: address, bu: uint256, S: uint256):
     W: uint256 = ERC20(_gas_escrow).totalSupply() # gas total of all users
 
     lim: uint256 = bu * TOKENLESS_PRODUCTION / 100 # 0.4bu
-    # _balance_without_boost: uint256 = lim
 
     # Boost portion below : game tokens (gas)
     if (S > 0) and (block.timestamp > self.period_timestamp[0] + BOOST_WARMUP) and wi > 0:
@@ -297,10 +286,6 @@ def _update_liquidity_limit(addr: address, bu: uint256, S: uint256):
     self.working_supply = _working_supply
 
     log UpdateLiquidityLimit(addr, bu, S, lim, _working_supply)
-
-    # Include calculation values: (for debugging, to be removed)
-    # _boost: uint256 = self.working_balances[addr] * 10 ** 18 / (bu * TOKENLESS_PRODUCTION / 100)
-    # log CalculationValues(_boost, wi, W)
 
 
 @external
