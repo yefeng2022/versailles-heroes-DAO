@@ -37,7 +37,6 @@ interface ERC20:
 interface SmartWalletChecker:
     def check(addr: address) -> bool: nonpayable
 
-DEPOSIT_FOR_TYPE: constant(int128) = 0
 CREATE_BURN_TYPE: constant(int128) = 1
 INCREASE_BURN_AMOUNT: constant(int128) = 2
 
