@@ -1,4 +1,10 @@
-# @version ^0.3.0
+# @version 0.3.1
+"""
+@title Reward Vesting Escrow
+@author Versailles heroes
+@license MIT
+@notice Reward Vesting 70% `ERC20VRH` tokens between checkpoints
+"""
 
 struct VestingInfo:
     amount: uint256
@@ -54,9 +60,6 @@ def __init__():
 @nonreentrant('lock')
 def vesting(_recipient: address, _amount: uint256) -> uint256:
     assert msg.sender == self.minter
-    # if msg.sender != self.admin:
-    #     assert self.fund_admins[msg.sender]  # dev: admin only
-    #     assert self.fund_admins_enabled  # dev: fund admins disabled
 
     vested_amount: uint256 = _amount * VESTING_RATIO / 100
     self.balanceOf[_recipient] += vested_amount
@@ -93,8 +96,6 @@ def vesting(_recipient: address, _amount: uint256) -> uint256:
     
     log Vesting(_recipient, user_vesting.start, user_vesting.end, user_vesting.slope, user_vesting.amount)
 
-    # self.initial_locked_supply += _total_amount
-    # self.unallocated_supply -= _total_amount
     return vested_amount
 
 @internal
