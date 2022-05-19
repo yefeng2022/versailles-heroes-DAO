@@ -1,4 +1,9 @@
-# @version ^0.3.0
+# @version 0.3.1
+"""
+@title Token Minter
+@author Versailles heroes
+@license MIT
+"""
 
 interface Guild:
     # Presumably, other gauges will provide the same interfaces

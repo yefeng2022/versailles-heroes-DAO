@@ -1,4 +1,10 @@
-# @version ^0.3.0
+# @version 0.3.1
+"""
+@title Versailles heroes DAO token
+@author Versailles heroes
+@license MIT
+@notice ERC20 with piecewise-linear mining supply.
+"""
 
 from vyper.interfaces import ERC20
 

@@ -1,4 +1,10 @@
-# @version ^0.3.0
+# @version 0.3.1
+"""
+@title Guild Controller
+@author Versailles heroes
+@license MIT
+@notice Controls guilds and the issuance of coins through the guilds
+"""
 
 # 7 * 86400 seconds - all future times are rounded by week
 WEEK: constant(uint256) = 604800

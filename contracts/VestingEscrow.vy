@@ -1,4 +1,10 @@
 # @version 0.3.1
+"""
+@title Vesting Escrow
+@author Versailles heroes
+@license MIT
+@notice Vests `ERC20VRH` tokens for multiple addresses over multiple vesting periods
+"""
 
 from vyper.interfaces import ERC20
 

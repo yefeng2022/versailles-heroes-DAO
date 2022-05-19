@@ -1,4 +1,12 @@
-# @version ^0.3.0
+# @version 0.3.1
+"""
+@title Voting Escrow
+@author Versailles heroes
+@license MIT
+@notice Votes have a weight depending on time.
+@dev Vote weight decays linearly over time. Lock time cannot be
+     more than `MAXTIME` (4 years).
+"""
 
 struct Point:
     bias: int128

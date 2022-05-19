@@ -1,4 +1,10 @@
-# @version ^0.3.0
+# @version 0.3.1
+"""
+@title ERC20 game token
+@author Versailles heroes
+@license MIT
+@notice ERC20 game token template
+"""
 
 from vyper.interfaces import ERC20
 from vyper.interfaces import ERC20Detailed

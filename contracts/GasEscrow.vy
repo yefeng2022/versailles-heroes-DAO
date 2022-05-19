@@ -1,4 +1,11 @@
-# @version ^0.3.0
+# @version 0.3.1
+"""
+@title Gas Escrow
+@author Versailles heroes
+@license MIT
+@notice Gas have a weight depending on time.
+@dev Gas weight decays linearly over time. Burn time must be 4 years.
+"""
 
 struct Point:
     bias: int128
@@ -371,25 +378,6 @@ def checkpoint():
     @notice Record global data to checkpoint
     """
     self._checkpoint(ZERO_ADDRESS, empty(BurnedBalance), empty(BurnedBalance))
-
-
-@external
-@nonreentrant('lock')
-def deposit_for(_addr: address, _value: uint256):
-    """
-    @notice Deposit `_value` tokens for `_addr` and add to the burn
-    @dev Anyone (even a smart contract) can deposit for someone else, but
-         cannot extend their burntime and deposit for a brand new user
-    @param _addr User's wallet address
-    @param _value Amount to add to user's burn
-    """
-    _burned: BurnedBalance = self.burned[_addr]
-
-    assert _value > 0  # dev: need non-zero value
-    assert _burned.amount > 0, "No existing burn found"
-    assert _burned.end > block.timestamp, "Cannot add to expired burn"
-
-    self._deposit_for(_addr, _value, 0, self.burned[_addr], DEPOSIT_FOR_TYPE)
 
 
 @external

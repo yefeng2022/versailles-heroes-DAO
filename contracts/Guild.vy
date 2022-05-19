@@ -1,4 +1,10 @@
-# @version ^0.3.0
+# @version 0.3.1
+"""
+@title Guild
+@author Versailles heroes
+@license MIT
+@notice Used for measuring owner and members rewards
+"""
 
 from vyper.interfaces import ERC20
 
@@ -130,11 +136,10 @@ def initialize(_owner: address, _commission_rate: uint256, _token: address, _gas
 
 
 @internal
-def _get_commission_rate() -> uint256:
+def _get_commission_rate():
     """
     @notice Fill historic commission rate week-over-week for missed checkins
             and return the commission rate for the future week
-    @return Commission rate
     """
     t: uint256 = self.last_change_rate
     if t > 0:
@@ -144,9 +149,6 @@ def _get_commission_rate() -> uint256:
                 break
             t += WEEK
             self.commission_rate[t] = w
-        return w
-    else:
-        return 0
 
 
 @internal
