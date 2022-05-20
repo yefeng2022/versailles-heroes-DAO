@@ -20,7 +20,7 @@ def initial_setup(chain, accounts, token, gas_token, voting_escrow, guild_contro
     chain.sleep(DAY + 1)
     token.update_mining_parameters()
     for i in range(1, 10):
-        token_amount = random.randint(40000, 300000) * 10 ** 18
+        token_amount = random.randint(110000, 300000) * 10 ** 18
         setup_account(token_amount, accounts[i], accounts, token, voting_escrow)
 
     token.set_minter(minter.address, {"from": accounts[0]})

@@ -11,7 +11,7 @@ WEEK: constant(uint256) = 604800
 
 # Cannot change weight votes more often than once in 10 days
 WEIGHT_VOTE_DELAY: constant(uint256) = 10 * 86400
-REQUIRED_CRITERIA: constant(uint256) = 30000
+REQUIRED_CRITERIA: constant(uint256) = 100000
 
 struct Point:
     bias: uint256
@@ -106,7 +106,8 @@ event ChangeGasEscrowContract:
     new_addr: address
 
 MULTIPLIER: constant(uint256) = 10 ** 18
-
+create_guild_admin_initialized: bool
+    
 admin: public(address)  # Can and will be a smart contract
 future_admin: public(address)  # Can and will be a smart contract
 
@@ -216,7 +217,10 @@ def commit_transfer_create_guild_ownership(addr: address):
     @notice Transfer ownership of GuildController to `addr`
     @param addr Address to have ownership transferred to
     """
-    assert msg.sender == self.admin  # dev: admin only
+    if self.create_guild_admin_initialized == True:
+        assert msg.sender == self.create_guild_admin  # dev: admin only
+    else: 
+        assert msg.sender == self.admin  # dev: admin only
     self.future_create_guild_admin = addr
     log CommitCreateGuildOwnership(addr)
 
@@ -226,10 +230,14 @@ def apply_transfer_create_guild_ownership():
     """
     @notice Apply pending ownership transfer
     """
-    assert msg.sender == self.admin  # dev: admin only
+    if self.create_guild_admin_initialized == True:
+        assert msg.sender == self.create_guild_admin  # dev: admin only
+    else: 
+        assert msg.sender == self.admin  # dev: admin only
     _create_guild_admin: address = self.future_create_guild_admin
     assert _create_guild_admin != ZERO_ADDRESS  # dev: create guild admin not set
     self.create_guild_admin = _create_guild_admin
+    self.create_guild_admin_initialized = True
     log ApplyCreateGuildOwnership(_create_guild_admin)
 
 
