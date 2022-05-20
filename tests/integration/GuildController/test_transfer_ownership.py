@@ -46,11 +46,9 @@ def test_transfer_create_guild_ownership(accounts, guild_controller):
     # change guild admin again
 
     with brownie.reverts('dev: admin only'):
-        guild_controller.apply_transfer_create_guild_ownership({"from": alice})
+        guild_controller.commit_transfer_create_guild_ownership(carl, {"from": bob})
 
-    guild_controller.commit_transfer_create_guild_ownership(carl, {"from": bob})
-    with brownie.reverts('dev: admin only'):
-        guild_controller.apply_transfer_create_guild_ownership({"from": alice})
+    guild_controller.commit_transfer_create_guild_ownership(carl, {"from": alice})
 
-    guild_controller.apply_transfer_create_guild_ownership({"from": bob})
+    guild_controller.apply_transfer_create_guild_ownership({"from": alice})
 
