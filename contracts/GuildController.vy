@@ -216,7 +216,7 @@ def commit_transfer_create_guild_ownership(addr: address):
     @notice Transfer ownership of GuildController to `addr`
     @param addr Address to have ownership transferred to
     """
-    assert msg.sender == self.create_guild_admin  # dev: admin only
+    assert msg.sender == self.admin  # dev: admin only
     self.future_create_guild_admin = addr
     log CommitCreateGuildOwnership(addr)
 
@@ -226,7 +226,7 @@ def apply_transfer_create_guild_ownership():
     """
     @notice Apply pending ownership transfer
     """
-    assert msg.sender == self.create_guild_admin  # dev: create guild admin only
+    assert msg.sender == self.admin  # dev: admin only
     _create_guild_admin: address = self.future_create_guild_admin
     assert _create_guild_admin != ZERO_ADDRESS  # dev: create guild admin not set
     self.create_guild_admin = _create_guild_admin
