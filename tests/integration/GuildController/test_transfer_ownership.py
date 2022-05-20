@@ -28,7 +28,7 @@ def test_transfer_create_guild_ownership(accounts, guild_controller):
     assert(guild_controller.create_guild_admin() == alice)
 
     with brownie.reverts('dev: admin only'):
-        guild_controller.commit_transfer_ownership(bob, {"from": carl})
+        guild_controller.commit_transfer_create_guild_ownership(bob, {"from": carl})
 
     # commit ownership
     guild_controller.commit_transfer_create_guild_ownership(bob, {"from": alice})
