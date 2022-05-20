@@ -10,7 +10,7 @@ def setup(accounts, token, voting_escrow):
 
 
 @given(
-    st_initial=strategy("uint", min_value=WEEK * 2, max_value=WEEK * 52),
+    st_initial=strategy("uint", min_value=WEEK * 53, max_value=WEEK * 200),
     st_extend=strategy("uint", min_value=WEEK, max_value=WEEK * 2),
 )
 def test_create_lock_zero_balance(accounts, chain, token, voting_escrow, st_initial, st_extend):
@@ -29,7 +29,7 @@ def test_create_lock_zero_balance(accounts, chain, token, voting_escrow, st_init
 
 
 @given(
-    st_initial=strategy("uint", min_value=WEEK * 2, max_value=WEEK * 52),
+    st_initial=strategy("uint", min_value=WEEK * 53, max_value=WEEK * 200),
     st_extend=strategy("uint", min_value=WEEK, max_value=WEEK * 2),
 )
 def test_increase_unlock_zero_balance(accounts, chain, token, voting_escrow, st_initial, st_extend):
