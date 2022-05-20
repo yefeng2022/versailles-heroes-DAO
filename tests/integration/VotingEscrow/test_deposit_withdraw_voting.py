@@ -62,6 +62,12 @@ class StateMachine:
                     st_value, unlock_time, {"from": st_account, "gas": GAS_LIMIT}
                 )
 
+        elif unlock_time < chain.time() + 86400 * 365:
+            with brownie.reverts("Voting lock must be 1 year min"):
+                self.voting_escrow.create_lock(
+                    st_value, unlock_time, {"from": st_account, "gas": GAS_LIMIT}
+                )
+
         else:
             tx = self.voting_escrow.create_lock(
                 st_value, unlock_time, {"from": st_account, "gas": GAS_LIMIT}
