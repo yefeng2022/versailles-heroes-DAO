@@ -14,8 +14,8 @@ TOL = 120 / WEEK
 @pytest.fixture(scope="module", autouse=True)
 def initial_setup(web3, chain, accounts, token, gas_token, voting_escrow, guild_controller, minter, reward_vesting):
     alice, bob = accounts[:2]
-    amount_alice = 40000 * 10 ** 18
-    amount_bob = 40000 * 10 ** 18
+    amount_alice = 110000 * 10 ** 18
+    amount_bob = 110000 * 10 ** 18
     token.transfer(bob, amount_alice, {"from": alice})
     token.transfer(bob, amount_bob, {"from": alice})
     stages = {}

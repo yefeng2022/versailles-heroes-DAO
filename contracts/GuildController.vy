@@ -11,7 +11,7 @@ WEEK: constant(uint256) = 604800
 
 # Cannot change weight votes more often than once in 10 days
 WEIGHT_VOTE_DELAY: constant(uint256) = 10 * 86400
-REQUIRED_CRITERIA: constant(uint256) = 30000
+REQUIRED_CRITERIA: constant(uint256) = 100000
 
 struct Point:
     bias: uint256
