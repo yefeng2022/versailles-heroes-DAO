@@ -2,7 +2,9 @@ import brownie
 
 import pytest
 from tests.conftest import approx
-from random import random, randrange
+from random import randrange
+from brownie import ZERO_ADDRESS
+from brownie_tokens import ERC20
 
 H = 3600
 DAY = 86400
@@ -267,6 +269,29 @@ def test_transfer_ownership(chain, accounts, gas_token, guild_controller, Guild)
     # check guild controller global owner list is bob
     assert guild.address == guild_controller.guild_owner_list(bob)
 
+    chain.sleep(10 * DAY + 1)
+    chain.mine()
+    # bob can not leave guild as a guild owner
+    with brownie.reverts("Owner cannot leave guild"):
+        guild.leave_guild({"from": bob})
+
+    # bob transfer owner to ZERO_address
+    guild_controller.transfer_guild_ownership(ZERO_ADDRESS, {"from": bob})
+    assert guild_controller.guild_owner_list(bob) == ZERO_ADDRESS
+    chain.sleep(DAY + 1)
+    chain.mine()
+    # bob leave guild
+    guild.leave_guild({"from": bob})
+    guild.leave_guild({"from": alice})
+    chain.sleep(10)
+    # alice create guild as owner
+    guild2 = create_guild_only(accounts, alice, 10, 0, Guild, guild_controller)
+    # check guild controller global owner list is alice
+    assert guild2.address == guild_controller.guild_owner_list(alice)
+    # bob create guild as owner
+    guild3 = create_guild_only(accounts, bob, 10, 0, Guild, guild_controller)
+    assert guild3.address == guild_controller.guild_owner_list(bob)
+
 
 def test_owner_leave_guild(chain, accounts, gas_token, guild_controller, Guild):
     alice = accounts[0]
@@ -285,6 +310,25 @@ def create_guild(chain, guild_controller, gas_token, guild_owner, Guild):
     guild_controller.add_type("Gas MOH", "GASMOH", gas_token.address, type_weight)
     chain.sleep(H)
     guild_controller.create_guild(guild_owner, guild_type, commission_rate, {"from": guild_owner})
+    guild_address = guild_controller.guild_owner_list(guild_owner)
+    guild_contract = Guild.at(guild_address)
+    guild_contract.user_checkpoint(guild_owner, {"from": guild_owner})
+    return guild_contract
+
+
+def create_type(type_id, guild_controller, type_weight):
+    token_name = "Coin " + str(type_id)
+    token_symbol = "MOH" + str(type_id)
+    token_contract = ERC20(token_name, token_symbol, 18)
+
+    token_type_name = "GAS" + token_name
+    token_type_symbol = "GAS" + token_symbol
+    tx = guild_controller.add_type(token_type_name, token_type_symbol, token_contract.address, type_weight)
+    assert guild_controller.gas_addr_escrow(token_contract.address) == tx.events['AddType']['gas_escrow']
+
+
+def create_guild_only(accounts, guild_owner, commission_rate, guild_type, Guild, guild_controller):
+    guild_controller.create_guild(guild_owner, guild_type, commission_rate, {"from": accounts[0]})
     guild_address = guild_controller.guild_owner_list(guild_owner)
     guild_contract = Guild.at(guild_address)
     guild_contract.user_checkpoint(guild_owner, {"from": guild_owner})
