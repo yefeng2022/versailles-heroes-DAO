@@ -757,9 +757,9 @@ def transfer_guild_ownership(new_owner: address):
     old_owner: address = msg.sender
     assert old_owner != new_owner # dev: tx sender cannot transfer to himself
     guild_addr: address = self.guild_owner_list[msg.sender]
+    assert guild_addr != ZERO_ADDRESS, "Not an owner"
     if new_owner != ZERO_ADDRESS:
         assert self.guild_owner_list[new_owner] == ZERO_ADDRESS, "New owner cannot be an owner of another guild"
-        assert guild_addr != ZERO_ADDRESS, "Not an owner"
         assert guild_addr == self.global_member_list[new_owner], "New owner is not in the same guild"
 
         # Check if new owner fulfils create_guild requirements
