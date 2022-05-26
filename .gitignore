@@ -9,4 +9,5 @@ tests/.DS_Store
 tests/__pycache__/*
 tests/**/__pycache__/*
 venv/*
-
+.env
+*.pyc

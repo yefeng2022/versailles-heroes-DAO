@@ -2,9 +2,13 @@ import brownie
 
 import pytest
 from tests.conftest import approx
+<<<<<<< HEAD
 from random import randrange
 from brownie import ZERO_ADDRESS
 from brownie_tokens import ERC20
+=======
+from random import random, randrange
+>>>>>>> bec7ce8 (add deploy scripts.)
 
 H = 3600
 DAY = 86400
@@ -269,6 +273,7 @@ def test_transfer_ownership(chain, accounts, gas_token, guild_controller, Guild)
     # check guild controller global owner list is bob
     assert guild.address == guild_controller.guild_owner_list(bob)
 
+<<<<<<< HEAD
     chain.sleep(10 * DAY + 1)
     chain.mine()
     # bob can not leave guild as a guild owner
@@ -292,6 +297,8 @@ def test_transfer_ownership(chain, accounts, gas_token, guild_controller, Guild)
     guild3 = create_guild_only(accounts, bob, 10, 0, Guild, guild_controller)
     assert guild3.address == guild_controller.guild_owner_list(bob)
 
+=======
+>>>>>>> bec7ce8 (add deploy scripts.)
 
 def test_owner_leave_guild(chain, accounts, gas_token, guild_controller, Guild):
     alice = accounts[0]
@@ -314,6 +321,7 @@ def create_guild(chain, guild_controller, gas_token, guild_owner, Guild):
     guild_contract = Guild.at(guild_address)
     guild_contract.user_checkpoint(guild_owner, {"from": guild_owner})
     return guild_contract
+<<<<<<< HEAD
 
 
 def create_type(type_id, guild_controller, type_weight):
@@ -333,3 +341,5 @@ def create_guild_only(accounts, guild_owner, commission_rate, guild_type, Guild,
     guild_contract = Guild.at(guild_address)
     guild_contract.user_checkpoint(guild_owner, {"from": guild_owner})
     return guild_contract
+=======
+>>>>>>> bec7ce8 (add deploy scripts.)

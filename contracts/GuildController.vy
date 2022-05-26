@@ -797,4 +797,7 @@ def change_gas_escrow_contract(new_addr: address):
     old_addr: address = self.gas_escrow
     self.gas_escrow = new_addr
     log ChangeGasEscrowContract(old_addr, new_addr)
+<<<<<<< HEAD
 
+=======
+>>>>>>> bec7ce8 (add deploy scripts.)
