@@ -1,0 +1,7 @@
+dotenv: .env
+wallets:
+  from_keys: ${PRIVATE_KEYS}
+paramers:
+  funding_admins: ${FUNDING_ADMINS}
+  aragon_agent: ${ARAGON_AGENT}
+  deployer: ${DEPLOYER}
