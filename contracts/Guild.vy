@@ -242,7 +242,7 @@ def _checkpoint(addr: address):
 @external
 def set_commission_rate(increase: bool):
     assert self.owner == msg.sender,'Only guild owner can change commission rate'
-    assert block.timestamp >= self.last_change_rate + WEEK, "Can only change commission rate once every week"
+    assert block.timestamp >= self.last_change_rate, "Can only change commission rate once every week"
     
     next_time: uint256 = (block.timestamp + WEEK) / WEEK * WEEK
     commission_rate: uint256 = self.commission_rate[self.last_change_rate]
