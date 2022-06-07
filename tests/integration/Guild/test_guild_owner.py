@@ -299,12 +299,29 @@ def test_transfer_ownership(chain, accounts, gas_token, guild_controller, Guild)
 
 def test_owner_leave_guild(chain, accounts, gas_token, guild_controller, Guild):
     alice = accounts[0]
+    bob = accounts[1]
     guild = create_guild(chain, guild_controller, gas_token, alice, Guild)
 
-    chain.sleep(2 * WEEK + 1)
+    chain.sleep(WEEK + 1)
     chain.mine()
     with brownie.reverts("Owner cannot leave guild"):
         guild.leave_guild({"from": alice})
+
+    # bob join guild as a member
+    guild.join_guild({"from": bob})
+    # transfer ownership to bob
+    guild_controller.transfer_guild_ownership(bob, {"from": alice})
+
+    chain.sleep(100)
+    chain.mine()
+    # alice leave guild failed
+    with brownie.reverts("Leave guild too soon"):
+        guild.leave_guild({"from": alice})
+
+    # alice leave guild
+    chain.sleep(3 * DAY)
+    chain.mine()
+    guild.leave_guild({"from": alice})
 
 
 def create_guild(chain, guild_controller, gas_token, guild_owner, Guild):
