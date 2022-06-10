@@ -306,7 +306,7 @@ def test_boosting(chain, accounts, token, gas_token, voting_escrow, guild_contro
     # alice get same rewards with bob
     alice_reward_2 = alice_integrate_fraction_3nd - alice_integrate_fraction_2nd
     bob_reward_2 = bob_integrate_fraction_3nd - bob_integrate_fraction_2nd
-    assert approx(alice_reward_2, bob_reward_2, 1e-5)
+    assert approx(alice_reward_2, bob_reward_2, TOL)
 
 
 def test_kick(chain, accounts, Guild, voting_escrow, token, guild_controller, gas_token, GasEscrow):

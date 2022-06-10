@@ -712,6 +712,7 @@ def refresh_guild_votes(user_addr: address, guild_addr: address):
 
 
 @external
+@view
 def belongs_to_guild(user_addr: address, guild_addr: address) -> bool:
     return self.global_member_list[user_addr] == guild_addr
 
