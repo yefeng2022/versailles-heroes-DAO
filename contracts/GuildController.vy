@@ -117,7 +117,6 @@ token: public(address) # VRH token
 voting_escrow: public(address)  # Voting escrow
 guild: public(address) # guild contract address
 gas_escrow: public(address)  # Gas escrow
-gas_types: public(HashMap[address, bool])
 gas_type_escrow: public(HashMap[int128, address])
 gas_addr_escrow: public(HashMap[address, address])
 minter: public(address)
