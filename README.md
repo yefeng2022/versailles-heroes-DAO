@@ -4,9 +4,9 @@ Vyper contracts used in the Versailles Heroes Governance DAO.
 
 ## Overview
 
-Versailles Heroes DAO consists of multiple smart contracts connected by [Aragon](https://github.com/aragon/aragonOS). Interaction with Aragon occurs through a [modified implementation](https://github.com/) of the [Aragon Voting App](https://github.com/aragon/aragon-apps/tree/master/apps/voting). Aragon's standard one token, one vote method is replaced with a weighting system based on locking tokens. Versailles Heroes DAO has a token (VRH) which is used for both governance and value accrual.
+Versailles Heroes DAO consists of multiple smart contracts connected by [Aragon](https://github.com/aragon/aragonOS). Interaction with Aragon occurs through a [modified implementation](https://github.com/Versailles-heroes-com/VRH-Aragon-DAO) of the [Aragon Voting App](https://github.com/aragon/aragon-apps/tree/master/apps/voting). Aragon's standard one token, one vote method is replaced with a weighting system based on locking tokens. Versailles Heroes DAO has a token (VRH) which is used for both governance and value accrual.
 
-View the [documentation](https://) for a more in-depth explanation of how Versailles Heroes DAO works.
+View the [documentation](https://docs.versaillesheroes.com/) for a more in-depth explanation of how Versailles Heroes DAO works.
 
 ## Testing and Development
 
@@ -55,9 +55,9 @@ See the [deployment documentation](scripts/deployment/README.md) for detailed in
 
 You may find the following guides useful:
 
-1. [Versailles Heroes DAO Resources](https://)
-2. [How to earn and claim VRH](https://)
-3. [Voting and vote locking on Versailles Heroes DAO](https://)
+1. [Versailles Heroes DAO Resources](https://docs.versaillesheroes.com/)
+2. [How to earn and claim VRH](https://docs.versaillesheroes.com/more../faq#1.-how-is-vrh-mined)
+3. [Voting and vote locking on Versailles Heroes DAO](https://docs.versaillesheroes.com/vrh-dao/vote-escrowed-vrh)
 
 ## Community
 
