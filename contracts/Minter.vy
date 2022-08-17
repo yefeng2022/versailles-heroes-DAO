@@ -31,7 +31,7 @@ event Minted:
 
 token: public(address)
 controller: public(address)
-vestingEscrow: public(address)
+rewardVestingEscrow: public(address)
 
 # user -> guild -> value
 minted: public(HashMap[address, HashMap[address, uint256]])
@@ -40,14 +40,14 @@ minted: public(HashMap[address, HashMap[address, uint256]])
 allowed_to_mint_for: public(HashMap[address, HashMap[address, bool]])
 
 @external
-def __init__(_token: address, _controller: address, _vestingEscrow: address):
+def __init__(_token: address, _controller: address, _rewardVestingEscrow: address):
     self.token = _token
     self.controller = _controller
-    self.vestingEscrow = _vestingEscrow
+    self.rewardVestingEscrow = _rewardVestingEscrow
 
 @internal
 def _mint_for(guild_addr: address, _for: address, leave_guild: bool):
-    vested_claimable: uint256 = RewardVestingEscrow(self.vestingEscrow).claim(_for) # claimable amount from existing vesting
+    vested_claimable: uint256 = RewardVestingEscrow(self.rewardVestingEscrow).claim(_for) # claimable amount from existing vesting
     to_mint: uint256 = vested_claimable
     new_vested_locked: uint256 = 0
 
@@ -63,7 +63,7 @@ def _mint_for(guild_addr: address, _for: address, leave_guild: bool):
         mintable: uint256 = total_mint - self.minted[_for][guild_addr]
 
         if mintable > 0:
-            new_vested_locked = RewardVestingEscrow(self.vestingEscrow).vesting(_for, mintable) # new 70% locked amount
+            new_vested_locked = RewardVestingEscrow(self.rewardVestingEscrow).vesting(_for, mintable) # new 70% locked amount
             immediate_release: uint256 = mintable - new_vested_locked # new 30% vested amount
             to_mint += immediate_release # inclusive of previous vested_claimable
             self.minted[_for][guild_addr] = total_mint
