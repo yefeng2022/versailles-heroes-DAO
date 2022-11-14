@@ -2,3 +2,10 @@ eth-brownie~=1.18.1
 pytest~=6.2.5
 hypothesis~=6.27.3
 brownie-token-tester
+eth-account>=0.5.9 # not directly required, pinned by Snyk to avoid a vulnerability
+eth-keyfile>=0.6.0 # not directly required, pinned by Snyk to avoid a vulnerability
+protobuf>=3.20.2 # not directly required, pinned by Snyk to avoid a vulnerability
+pyjwt>=2.4.0 # not directly required, pinned by Snyk to avoid a vulnerability
+vyper>=0.3.4 # not directly required, pinned by Snyk to avoid a vulnerability
+websockets>=10.0 # not directly required, pinned by Snyk to avoid a vulnerability
+wheel>=0.38.0 # not directly required, pinned by Snyk to avoid a vulnerability
