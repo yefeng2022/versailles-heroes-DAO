@@ -2,3 +2,4 @@ eth-brownie~=1.18.1
 pytest~=6.2.5
 hypothesis~=6.27.3
 brownie-token-tester
+vyper>=0.4.0 # not directly required, pinned by Snyk to avoid a vulnerability
